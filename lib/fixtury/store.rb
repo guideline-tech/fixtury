@@ -5,6 +5,7 @@ require "file"
 require "yaml"
 require "fixtury/schema"
 require "fixtury/errors/circular_dependency_error"
+require "globalid"
 
 module Fixtury
   class Store
@@ -60,13 +61,11 @@ module Fixtury
     alias [] get
 
     def load_ref(ref)
-      loader = ::Fixtury.config.reference_loader
-      loader.call(ref)
+      ::GlobalID::Locator.locate(ref)
     end
 
     def dump_ref(value)
-      dumper = ::Fixture.config.reference_dumper
-      dumper.call(value)
+      value.to_global_id.to_s
     end
 
   end
