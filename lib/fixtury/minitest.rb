@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
-require "fixtury/store"
+require "fixtury/cache"
 
 module Fixtury
   module Minitest
 
     included do
-      class_attribute :fixtury_set
-      self.fixtury_set = Set.new
+      class_attribute :fixtury_dependencies
+      self.fixtury_dependencies = ::Set.new
     end
 
     module ClassMethods
 
       def fixtury(*names)
-        self.fixtury_set |= names.flatten.compact.map(&:to_s)
+        self.fixtury_dependencies |= names.flatten.compact.map(&:to_s)
       end
 
     end
@@ -24,11 +24,12 @@ module Fixtury
     end
 
     def ensure_fixturies_loaded
-      fixtury_set.each do |name|
-        ::Fixtury::Store.instance.get(name)
+      fixtury_dependencies.each do |name|
+        ::Fixtury::Cache.instance.get(name)
       end
     end
 
     ::Minitest::Test.send(:prepend, self)
+
   end
 end

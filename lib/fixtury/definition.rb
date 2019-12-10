@@ -4,22 +4,21 @@ module Fixtury
   class Definition
 
     attr_reader :name
-    attr_reader :schema
-    attr_reader :block
+    attr_reader :set
+    attr_reader :callable
 
-    def initialize(schema, name, &block)
-      @schema = schema
+    def initialize(name:, callable:)
       @name = name
-      @block = block
+      @callable = callable
     end
 
-    alias to_s name
+    def call(cache: nil)
+      if callable.arity == 1
+        raise ArgumentError, "A cache store must be provided if the definition expects it." unless cache
 
-    def run(store)
-      if block.arity == 1
-        schema.instance_exec(store, &block)
+        instance_exec(cache, &callable)
       else
-        schema.instance_exec(&block)
+        instance_eval(&callable)
       end
     end
 

@@ -1,6 +1,6 @@
 # Fixtury
 
-The goal of this library is to provide a schema for accessing fixture data on-demand rather than having to build it all up front. By centralizing and wrapping the definitions of data generation, we can preload and optimize how we load data.
+The goal of this library is to provide an interface for accessing fixture data on-demand rather than having to build it all up front. By centralizing and wrapping the definitions of data generation, we can preload and optimize how we load data.
 
 For example, if a developer is running a test locally, there's no reason to build all fixtures.
 

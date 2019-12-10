@@ -1,35 +1,34 @@
 # frozen_string_literal: true
 
 require "singleton"
-require "file"
 require "yaml"
 require "fixtury/schema"
+require "fixtury/locator"
 require "fixtury/errors/circular_dependency_error"
-require "globalid"
 
 module Fixtury
-  class Store
-
-    class << self
-
-      def instance
-        @instance ||= new
-      end
-
-    end
+  class Cache
 
     HOLDER = "__BUILDING_FIXTURE__"
 
-    attr_reader :filepath, :schema, :references
+    attr_reader :filepath, :references
+    attr_reader :schema, :locator
 
-    def initialize(filepath:, schema: ::Fixtury::Schema.instance)
+    def initialize(filepath:, schema: ::Fixtury::Schema.instance, locator: ::Fixtury::Locator.instance)
       @schema = schema
+      @locator = locator
       @filepath = filepath
       @references = ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
     end
 
     def dump_to_file
       ::File.open(filepath, "wb") { |io| io.write(references.to_yaml) }
+    end
+
+    def load_all
+      schema.definitions.each do |dfn|
+        get(dfn.name)
+      end
     end
 
     def get(name)
@@ -40,32 +39,30 @@ module Fixtury
         raise ::Fixtury::Errors::CircularDependencyError, name
       end
 
+      value = nil
+
       if ref
         value = load_ref(ref)
-        return value if value
-
-        ref = nil
       else
-        # set the store to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
+        # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[name] = HOLDER
 
-        ref = references[name] = begin
-          definition = schema.get_definition!(name)
-          value = definition.run(self)
-          dump_ref(value)
-        end
+        dfn = schema.get_definition!(name: name)
+        value = dfn.call(cache: self)
+
+        references[name] = dump_ref(value)
       end
 
-      load_ref(ref)
+      value
     end
     alias [] get
 
     def load_ref(ref)
-      ::GlobalID::Locator.locate(ref)
+      locator.load(ref)
     end
 
     def dump_ref(value)
-      value.to_global_id.to_s
+      locator.dump(value)
     end
 
   end
