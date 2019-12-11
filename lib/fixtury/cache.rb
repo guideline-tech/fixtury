@@ -14,14 +14,16 @@ module Fixtury
     attr_reader :filepath, :references
     attr_reader :schema, :locator
 
-    def initialize(filepath:, schema: ::Fixtury::Schema.instance, locator: ::Fixtury::Locator.instance)
+    def initialize(filepath: nil, schema: ::Fixtury::Schema.instance, locator: ::Fixtury::Locator.instance)
       @schema = schema
       @locator = locator
       @filepath = filepath
-      @references = ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
+      @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
     end
 
     def dump_to_file
+      return unless filepath
+
       ::File.open(filepath, "wb") { |io| io.write(references.to_yaml) }
     end
 
