@@ -18,18 +18,21 @@ module Fixtury
 
     end
 
-    def before_setup
-      ensure_fixturies_loaded
-      super
-    end
+    def fixtury(name)
+      raise ArgumentError unless fixtury_dependencies.include?(name.to_s)
 
-    def ensure_fixturies_loaded
-      fixtury_dependencies.each do |name|
-        ::Fixtury::Cache.instance.get(name)
-      end
+      ::Fixtury::Cache.instance.get(name)
     end
 
     ::Minitest::Test.send(:prepend, self)
 
   end
+end
+
+class Test
+
+  fixtury "users.a"
+
+  let(:user) { fixtury("users.a") }
+
 end

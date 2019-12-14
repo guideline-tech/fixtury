@@ -7,21 +7,21 @@ module Fixtury
   class IntegrationTest < ::Test
 
     let :schema do
-      ::Fixtury::Schema.define do
-        fixture name: "earth" do
+      ::Fixtury.define do
+        fixture "earth" do
           "Earth"
         end
 
         namespace name: "countries" do
-          fixture name: "usa" do
+          fixture "usa" do
             "United States of America"
           end
 
-          fixture name: "canada" do
+          fixture "canada" do
             "Canada"
           end
 
-          fixture name: "asu" do |db|
+          fixture "asu" do |db|
             db[:usa].reverse
           end
         end
@@ -29,7 +29,7 @@ module Fixtury
     end
 
     let :cache do
-      ::Fixtury::Cache.new(schema: schema)
+      ::Fixtury::Cache.new(namespace: schema)
     end
 
     def test_a_fixtures_can_be_loaded
