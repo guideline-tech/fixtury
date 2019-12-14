@@ -7,7 +7,7 @@ module Fixtury
   class DefinitionTest < Test
 
     def test_it_can_be_instantiated
-      Fixtury::Definition.new(name: "foo"){}
+      ::Fixtury::Definition.new(name: "foo"){}
     end
 
     def test_the_callable_with_no_arguments_can_be_run_without_a_store
