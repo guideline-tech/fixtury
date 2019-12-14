@@ -6,10 +6,11 @@ require "fixtury/schema"
 module Fixtury
   class SchemaTest < ::Test
 
-    let(:ns) { ::Fixtury::Schema.new(parent: nil, name: "test") }
+    let(:schema) { ::Fixtury::Schema.new(parent: nil, name: "test") }
+    let(:other_schema) { ::Fixtury::Schema.new(parent: nil, name: "test2") }
 
     def test_it_allows_fixtures_to_be_defined
-      ns.define do
+      schema.define do
         fixture :foo do
           "foo"
         end
@@ -19,18 +20,15 @@ module Fixtury
         end
       end
 
-      foo_def = ns.get_definition(:foo)
-      bar_def = ns.get_definition(:bar)
-
-      refute_nil foo_def
-      refute_nil bar_def
+      foo_def = schema.get_definition!(:foo)
+      bar_def = schema.get_definition!(:bar)
 
       assert_equal "foo", foo_def.call
       assert_equal "bar", bar_def.call
     end
 
     def test_schemas_can_be_used
-      ns.define do
+      schema.define do
         namespace "bar" do
           fixture "baz" do
             "barbaz"
@@ -38,15 +36,13 @@ module Fixtury
         end
       end
 
-      barbaz_def = ns.get_definition("bar/baz")
-
-      refute_nil barbaz_def
+      barbaz_def = schema.get_definition!("bar/baz")
 
       assert_equal "barbaz", barbaz_def.call
     end
 
     def test_schemas_can_be_used_twice
-      ns.define do
+      schema.define do
         namespace "bar" do
           fixture "baz" do
             "barbaz"
@@ -60,18 +56,15 @@ module Fixtury
         end
       end
 
-      barbaz_def = ns.get_definition("bar/baz")
-      barqux_def = ns.get_definition("bar/qux")
-
-      refute_nil barbaz_def
-      refute_nil barqux_def
+      barbaz_def = schema.get_definition!("bar/baz")
+      barqux_def = schema.get_definition!("bar/qux")
 
       assert_equal "barbaz", barbaz_def.call
       assert_equal "barqux", barqux_def.call
     end
 
     def test_schemas_can_be_nested
-      ns.define do
+      schema.define do
         namespace "foo" do
           namespace "bar" do
             fixture "baz" do
@@ -81,30 +74,29 @@ module Fixtury
         end
       end
 
-      foobarbaz_def = ns.get_definition("foo/bar/baz")
-      refute_nil foobarbaz_def
+      foobarbaz_def = schema.get_definition!("foo/bar/baz")
       assert_equal "foobarbaz", foobarbaz_def.call
     end
 
     def test_schemas_can_be_reopened
-      ns.define do
+      schema.define do
         fixture "foo" do
           "foo"
         end
       end
 
-      ns.define do
+      schema.define do
         fixture "bar" do
           "bar"
         end
       end
 
-      assert_equal 2, ns.definitions.size
+      assert_equal 2, schema.definitions.size
     end
 
     def test_the_same_name_cannot_be_used_twice
       do_it = proc do
-        ns.define do
+        schema.define do
           fixture "bar" do
             "bar"
           end
@@ -113,26 +105,137 @@ module Fixtury
 
       do_it.call
 
-      assert_equal 1, ns.definitions.size
+      assert_equal 1, schema.definitions.size
 
-      assert_raises Fixtury::Errors::FixtureAlreadyDefinedError do
+      assert_raises Fixtury::Errors::AlreadyDefinedError do
         do_it.call
       end
     end
 
-    def other_schemas_can_be_merged
+    def test_a_namespace_and_fixture_cannot_use_the_same_name
       schema.define do
-        namespace "foo" do
-          fixture "bar" do
-            "whatever"
+        fixture "foo" do
+          "foo"
+        end
+
+        namespace "bar" do
+          fixture "baz" do
           end
         end
       end
 
-      schema.define do
-        namespace "baz" do
+      assert_raises Fixtury::Errors::AlreadyDefinedError do
+        schema.define do
+          namespace "foo" do
+          end
         end
       end
+
+      assert_raises Fixtury::Errors::AlreadyDefinedError do
+        schema.define do
+          fixture "bar" do
+          end
+        end
+      end
+    end
+
+    def test_a_fixture_with_the_same_name_can_be_defined_within_a_namespace
+      schema.define do
+        fixture "foo" do
+          "foo"
+        end
+
+        namespace "bar" do
+          fixture "foo" do
+            "bar/foo"
+          end
+        end
+      end
+
+      foo_def = schema.get_definition!("foo")
+      barfoo_def = schema.get_definition!("bar/foo")
+
+      assert_equal "foo", foo_def.call
+      assert_equal "bar/foo", barfoo_def.call
+    end
+
+    def test_other_schemas_can_be_merged
+      schema.define do
+        namespace "foo" do
+          fixture "nesteda" do
+            "foo/nesteda"
+          end
+        end
+
+        fixture "topa" do
+          "topa"
+        end
+      end
+
+      other_schema.define do
+        namespace "foo" do
+          fixture "nestedb" do
+            "foo/nestedb"
+          end
+        end
+
+        fixture "topb" do
+          "topb"
+        end
+      end
+
+      o = other_schema
+
+      schema.define do
+        merge o
+      end
+
+      assert_equal 1, schema.children.size
+      assert_equal 2, schema.definitions.size
+
+      assert_equal 1, other_schema.children.size
+      assert_equal 1, other_schema.definitions.size
+
+      original_topa_def = schema.get_definition!("topa")
+      original_topb_def = other_schema.get_definition!("topb")
+      merged_topb_def = schema.get_definition!("topb")
+
+      original_nesteda_def = schema.get_definition!("foo/nesteda")
+      original_nestedb_def = other_schema.get_definition!("foo/nestedb")
+      merged_nestedb_def = schema.get_definition!("foo/nestedb")
+
+      assert_equal "topa", original_topa_def.call
+      assert_equal "topb", original_topb_def.call
+      assert_equal "topb", merged_topb_def.call
+
+      assert_equal "foo/nesteda", original_nesteda_def.call
+      assert_equal "foo/nestedb", original_nestedb_def.call
+      assert_equal "foo/nestedb", merged_nestedb_def.call
+
+      refute_equal original_topb_def.object_id, merged_topb_def.object_id
+      refute_equal original_nestedb_def.object_id, merged_nestedb_def.object_id
+    end
+
+    def test_fixtures_can_be_enhanced
+      o = other_schema
+      o.define do
+        fixture "foo" do
+          "foo"
+        end
+      end
+
+      schema.define do
+        merge o
+
+        enhance "foo" do |value|
+          value * 2
+        end
+      end
+
+      foodef = schema.get_definition!("foo")
+
+      assert_equal true, foodef.enhanced?
+      assert_equal "foofoo", foodef.call
     end
 
   end

@@ -2,17 +2,18 @@
 
 require "fixtury/definition"
 require "fixtury/path"
-require "fixtury/errors/fixture_already_defined_error"
+require "fixtury/errors/already_defined_error"
 require "fixtury/errors/fixture_not_defined_error"
 
 module Fixtury
   class Schema
 
-    attr_reader :definitions, :children, :name, :parent
+    attr_reader :definitions, :children, :name, :parent, :relative_name
 
     def initialize(parent:, name:)
       @name = name
       @parent = parent
+      @relative_name = @name.split("/").last
       @children = {}
       @definitions = {}
     end
@@ -29,23 +30,37 @@ module Fixtury
       instance_eval(&block)
     end
 
+    # helpful for inspection
+    def structure(indent = "")
+      out = []
+      out << "#{indent}ns:#{relative_name}"
+      definitions.keys.sort.each do |key|
+        out << "#{indent}  defn:#{key}"
+      end
+
+      children.keys.sort.each do |key|
+        child = children[key]
+        out << child.structure("#{indent}  ")
+      end
+
+      out.join("\n")
+    end
+
     def namespace(name, &block)
+      ensure_no_conflict!(name: name, definitions: true, namespaces: false)
+
       child = find_or_create_child_schema(name: name)
       child.instance_eval(&block)
       child
     end
 
     def fixture(name, &block)
-      definition = find_child_definition(name: name)
-      raise ::Fixtury::Errors::FixtureAlreadyDefinedError, definition.name if definition
-
+      ensure_no_conflict!(name: name, definitions: true, namespaces: true)
       create_child_definition(name: name, &block)
     end
 
     def enhance(name, &block)
-      definition = find_child_definition(name: name)
-      raise ::Fixtury::Errors::FixtureNotDefinedError, build_child_name(name: name) unless definition
-
+      definition = get_definition!(name)
       definition.enhance(&block)
       definition
     end
@@ -124,11 +139,18 @@ module Fixtury
 
     protected
 
+    def find_child_schema(name:)
+      children[name.to_s]
+    end
+
     def find_or_create_child_schema(name:)
       name = name.to_s
-      children[name] ||= begin
-        child_name = build_child_name(name: name)
-        self.class.new(name: child_name, parent: self)
+      child = find_child_schema(name: name)
+      child ||= begin
+        children[name] = begin
+          child_name = build_child_name(name: name)
+          self.class.new(name: child_name, parent: self)
+        end
       end
     end
 
@@ -148,6 +170,18 @@ module Fixtury
       raise ArgumentError, "`name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
 
       [self.name, name].join("/")
+    end
+
+    def ensure_no_conflict!(name:, namespaces:, definitions:)
+      if definitions
+        definition = find_child_definition(name: name)
+        raise ::Fixtury::Errors::AlreadyDefinedError, definition.name if definition
+      end
+
+      if namespaces
+        ns = find_child_schema(name: name)
+        raise ::Fixtury::Errors::AlreadyDefinedError, ns.name if ns
+      end
     end
 
   end

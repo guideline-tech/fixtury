@@ -7,7 +7,9 @@ require "fixtury/schema"
 module Fixtury
 
   def self.define(name = nil, &block)
-    get_schema(name).define(&block)
+    schema = get_schema(name)
+    schema.define(&block)
+    schema
   end
 
   def self.get_schema(name = nil)

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "fixtury/cache"
+require "fixtury/store"
 
 module Fixtury
   module Minitest
@@ -21,18 +21,10 @@ module Fixtury
     def fixtury(name)
       raise ArgumentError unless fixtury_dependencies.include?(name.to_s)
 
-      ::Fixtury::Cache.instance.get(name)
+      ::Fixtury::Store.instance.get(name)
     end
 
     ::Minitest::Test.send(:prepend, self)
 
   end
-end
-
-class Test
-
-  fixtury "users.a"
-
-  let(:user) { fixtury("users.a") }
-
 end

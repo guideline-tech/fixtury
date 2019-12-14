@@ -6,7 +6,11 @@ module Fixtury
     def initialize(namespace:, path:)
       @namespace = namespace.to_s
       @path = path.to_s
-      @full_path = ::File.join(@namespace, @path)
+      @full_path = (
+        @path.start_with?("/") ?
+        @path :
+        File.expand_path(::File.join(@namespace, @path), "/")
+      )
       @segments = @full_path.split("/")
     end
 

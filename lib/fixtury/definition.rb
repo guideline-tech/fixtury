@@ -20,11 +20,15 @@ module Fixtury
       @enhancements << block
     end
 
-    def call(cache: nil)
-      maybe_set_cache_context(cache: cache) do
-        value = run_callable(cache: cache, callable: callable, value: nil)
+    def enhanced?
+      @enhancements.any?
+    end
+
+    def call(store: nil)
+      maybe_set_store_context(store: store) do
+        value = run_callable(store: store, callable: callable, value: nil)
         enhancements.each do |e|
-          run_callable(cache: cache, callable: e, value: value)
+          value = run_callable(store: store, callable: e, value: value)
         end
         value
       end
@@ -32,21 +36,21 @@ module Fixtury
 
     protected
 
-    def maybe_set_cache_context(cache:)
-      return yield unless cache
+    def maybe_set_store_context(store:)
+      return yield unless store
 
-      cache.with_relative_schema(schema) do
+      store.with_relative_schema(schema) do
         yield
       end
     end
 
-    def run_callable(cache:, callable:, value:)
+    def run_callable(store:, callable:, value:)
       args = []
       args << value unless value.nil?
       if callable.arity > args.length
-        raise ArgumentError, "A cache store must be provided if the definition expects it." unless cache
+        raise ArgumentError, "A store store must be provided if the definition expects it." unless store
 
-        args << cache
+        args << store
       end
       if args.length.positive?
         instance_exec(*args, &callable)

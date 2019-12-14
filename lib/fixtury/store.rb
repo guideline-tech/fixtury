@@ -6,7 +6,7 @@ require "fixtury/locator"
 require "fixtury/errors/circular_dependency_error"
 
 module Fixtury
-  class Cache
+  class Store
 
     HOLDER = "__BUILDING_FIXTURE__"
 
@@ -37,11 +37,11 @@ module Fixtury
     end
 
     def with_relative_schema(schema)
-      prior = @relative_schema
-      @relative_schema = schema
+      prior = @schema
+      @schema = schema
       yield
     ensure
-      @relative_schema = prior
+      @schema = prior
     end
 
     def get(name)
@@ -61,7 +61,7 @@ module Fixtury
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = HOLDER
 
-        value = dfn.call(cache: self)
+        value = dfn.call(store: self)
 
         references[full_name] = dump_ref(value)
       end
