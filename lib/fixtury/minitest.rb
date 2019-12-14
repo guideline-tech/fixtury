@@ -5,6 +5,10 @@ require "fixtury/store"
 module Fixtury
   module Minitest
 
+    def self.fixtury_dependencies
+      @fixtury_dependencies ||= Set.new
+    end
+
     included do
       class_attribute :fixtury_dependencies
       self.fixtury_dependencies = ::Set.new
@@ -13,7 +17,10 @@ module Fixtury
     module ClassMethods
 
       def fixtury(*names)
-        self.fixtury_dependencies |= names.flatten.compact.map(&:to_s)
+        ::Fixtury::Minitest.fixtury_dependencies
+        names.flatten.compact.each do |n|
+          ::Fixtury::Minitest.fixtury_dependencies << n.to_s
+        end
       end
 
     end
