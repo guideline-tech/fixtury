@@ -17,7 +17,7 @@ module Fixtury
 
     def test_the_callable_with_one_argument_can_be_run_with_a_cache
       dfn = ::Fixtury::Definition.new(name: "foo") { |_x| "bar" }
-      assert_equal "bar", dfn.call(cache: {})
+      assert_equal "bar", dfn.call(cache: Fixtury::Cache.new)
     end
 
     def test_the_callable_with_one_argument_errors_when_no_cache_is_provided

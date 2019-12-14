@@ -4,14 +4,14 @@ module Fixtury
   class Definition
 
     attr_reader :name
-    attr_reader :namespace
+    attr_reader :schema
 
     attr_reader :callable
     attr_reader :enhancements
 
-    def initialize(namespace: nil, name:, &block)
+    def initialize(schema: nil, name:, &block)
       @name = name
-      @namespace = namespace
+      @schema = schema
       @callable = block
       @enhancements = []
     end
@@ -21,14 +21,24 @@ module Fixtury
     end
 
     def call(cache: nil)
-      value = run_callable(cache: cache, callable: callable, value: nil)
-      enhancements.each do |e|
-        run_callable(cache: cache, callable: e, value: value)
+      maybe_set_cache_context(cache: cache) do
+        value = run_callable(cache: cache, callable: callable, value: nil)
+        enhancements.each do |e|
+          run_callable(cache: cache, callable: e, value: value)
+        end
+        value
       end
-      value
     end
 
     protected
+
+    def maybe_set_cache_context(cache:)
+      return yield unless cache
+
+      cache.with_relative_schema(schema) do
+        yield
+      end
+    end
 
     def run_callable(cache:, callable:, value:)
       args = []

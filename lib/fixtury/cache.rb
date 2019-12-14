@@ -11,10 +11,10 @@ module Fixtury
     HOLDER = "__BUILDING_FIXTURE__"
 
     attr_reader :filepath, :references
-    attr_reader :namespace, :locator
+    attr_reader :schema, :locator
 
-    def initialize(filepath: nil, namespace: ::Fixtury::Schema.get_schema, locator: ::Fixtury::Locator.instance)
-      @namespace = namespace
+    def initialize(filepath: nil, schema: ::Fixtury.get_schema, locator: ::Fixtury::Locator.instance)
+      @schema = schema
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
@@ -26,22 +26,31 @@ module Fixtury
       ::File.open(filepath, "wb") { |io| io.write(references.to_yaml) }
     end
 
-    def load_all(namespace = self.namespace)
-      namespace.definitions.each_pair do |_key, dfn|
+    def load_all(schema = self.schema)
+      schema.definitions.each_pair do |_key, dfn|
         get(dfn.name)
       end
 
-      namespace.namespaces.each_pair do |_key, ns|
+      schema.schemas.each_pair do |_key, ns|
         load_all(ns)
       end
     end
 
+    def with_relative_schema(schema)
+      prior = @relative_schema
+      @relative_schema = schema
+      yield
+    ensure
+      @relative_schema = prior
+    end
+
     def get(name)
-      name = name.to_s
-      ref = references[name]
+      dfn = schema.get_definition!(name)
+      full_name = dfn.name
+      ref = references[full_name]
 
       if ref == HOLDER
-        raise ::Fixtury::Errors::CircularDependencyError, name
+        raise ::Fixtury::Errors::CircularDependencyError, full_name
       end
 
       value = nil
@@ -50,12 +59,11 @@ module Fixtury
         value = load_ref(ref)
       else
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
-        references[name] = HOLDER
+        references[full_name] = HOLDER
 
-        dfn = namespace.get_definition!(name: name)
         value = dfn.call(cache: self)
 
-        references[name] = dump_ref(value)
+        references[full_name] = dump_ref(value)
       end
 
       value

@@ -5,7 +5,7 @@ module Fixtury
     class FixtureAlreadyDefinedError < ::StandardError
 
       def initialize(name)
-        super("A fixture identified by #{name} already exists.")
+        super("A fixture identified by `#{name}` already exists.")
       end
 
     end

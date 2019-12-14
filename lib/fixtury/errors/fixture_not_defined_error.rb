@@ -5,7 +5,7 @@ module Fixtury
     class FixtureNotDefinedError < ::StandardError
 
       def initialize(name)
-        super("A fixture identified by #{name} does not exist.")
+        super("A fixture identified by `#{name}` does not exist.")
       end
 
     end

@@ -12,7 +12,7 @@ module Fixtury
           "Earth"
         end
 
-        namespace name: "countries" do
+        namespace "countries" do
           fixture "usa" do
             "United States of America"
           end
@@ -29,11 +29,11 @@ module Fixtury
     end
 
     let :cache do
-      ::Fixtury::Cache.new(namespace: schema)
+      ::Fixtury::Cache.new(schema: schema)
     end
 
     def test_a_fixtures_can_be_loaded
-      assert_eq "United States of America", cache[:usa]
+      assert_equal "United States of America", cache[:usa]
     end
 
   end
