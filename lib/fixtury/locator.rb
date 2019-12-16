@@ -1,12 +1,21 @@
 # frozen_string_literal: true
 
-require "fixtury/locator_backend/memory"
-
 module Fixtury
   class Locator
 
-    def self.instance
-      @instance ||= new(backend: ::Fixtury::LocatorBackend::Memory.new)
+    class << self
+
+      attr_accessor :instance
+
+      def instance
+        @instance ||= begin
+          require "fixtury/locator_backend/memory"
+          ::Fixtury::Locator.new(
+            backend: ::Fixtury::LocatorBackend::Memory.new
+          )
+        end
+      end
+
     end
 
     attr_reader :backend

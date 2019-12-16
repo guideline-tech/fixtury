@@ -14,6 +14,10 @@ module Fixtury
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
+      reset!
+    end
+
+    def reset!
       @children = {}
       @definitions = {}
     end
@@ -167,7 +171,7 @@ module Fixtury
     def build_child_name(name:)
       name = name&.to_s
       raise ArgumentError, "`name` must be provided" if name.nil?
-      raise ArgumentError, "`name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
+      raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
 
       [self.name, name].join("/")
     end

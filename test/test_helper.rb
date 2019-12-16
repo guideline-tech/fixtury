@@ -12,6 +12,11 @@ class Test < Minitest::Test
 
   extend ::MiniTest::Spec::DSL # for let
 
+  def before_setup
+    ::Fixtury.schema.reset!
+    super
+  end
+
 end
 
 ::MiniTest::Runnable.runnables.delete Test

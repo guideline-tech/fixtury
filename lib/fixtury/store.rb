@@ -8,16 +8,19 @@ require "fixtury/errors/circular_dependency_error"
 module Fixtury
   class Store
 
+    cattr_accessor :instance
+
     HOLDER = "__BUILDING_FIXTURE__"
 
     attr_reader :filepath, :references
     attr_reader :schema, :locator
 
-    def initialize(filepath: nil, schema: ::Fixtury.get_schema, locator: ::Fixtury::Locator.instance)
-      @schema = schema
+    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance)
+      @schema = ::Fixtury.schema
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
+      self.class.instance ||= self
     end
 
     def dump_to_file

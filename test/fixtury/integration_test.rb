@@ -51,7 +51,12 @@ module Fixtury
     end
 
     let :store do
-      ::Fixtury::Store.new(schema: schema)
+      ::Fixtury::Store.new
+    end
+
+    def setup
+      super
+      schema
     end
 
     def test_a_fixtures_can_be_loaded
@@ -77,7 +82,10 @@ module Fixtury
     end
 
     def test_relatives_can_access_parent_fixtures
+      $debug = true
       assert_equal "Town, Relative Earth", store["countries/towns/relative_town"]
+    ensure
+      $debug = false
     end
 
     def test_absolutes_can_be_used_from_nesting
