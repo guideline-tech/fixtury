@@ -4,6 +4,7 @@ require "singleton"
 require "yaml"
 require "fixtury/locator"
 require "fixtury/errors/circular_dependency_error"
+require "fixtury/execution_context"
 
 module Fixtury
   class Store
@@ -14,12 +15,16 @@ module Fixtury
 
     attr_reader :filepath, :references
     attr_reader :schema, :locator
+    attr_reader :verbose
+    attr_reader :execution_context
 
-    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance)
+    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance, verbose: false)
       @schema = ::Fixtury.schema
+      @verbose = verbose
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
+      @execution_context = ::Fixtury::ExecutionContext.new
       self.class.instance ||= self
     end
 
@@ -39,12 +44,34 @@ module Fixtury
       end
     end
 
+    def clear_cache!(pattern: nil)
+      pattern ||= "*"
+      pattern = "/" + pattern unless pattern.start_with?("/")
+      glob = pattern.ends_with?("*")
+      pattern = pattern[0...-1] if glob
+      references.delete_if do |key, _value|
+        hit = glob ? key.start_with?(pattern) : key == pattern
+        log(true) { "clearing #{key}" } if hit
+        hit
+      end
+      dump_to_file
+    end
+
     def with_relative_schema(schema)
       prior = @schema
       @schema = schema
       yield
     ensure
       @schema = prior
+    end
+
+    def loaded?(name)
+      dfn = schema.get_definition!(name)
+      full_name = dfn.name
+      ref = references[full_name]
+      result = ref && ref != HOLDER
+      log { result ? "hit #{full_name}" : "miss #{full_name}" }
+      result
     end
 
     def get(name)
@@ -59,13 +86,15 @@ module Fixtury
       value = nil
 
       if ref
+        log { "hit #{name}" }
         value = load_ref(ref)
       else
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = HOLDER
 
-        value = dfn.call(store: self)
+        value = dfn.call(store: self, execution_context: execution_context)
 
+        log { "store #{name}" }
         references[full_name] = dump_ref(value)
       end
 
@@ -79,6 +108,12 @@ module Fixtury
 
     def dump_ref(value)
       locator.dump(value)
+    end
+
+    def log(local_verbose, &block)
+      return unless verbose || local_verbose
+
+      puts "[fixtury|store] #{block.call}"
     end
 
   end

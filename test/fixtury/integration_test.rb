@@ -17,33 +17,33 @@ module Fixtury
             "Country"
           end
 
-          fixture "reverse_country" do |db|
-            db[:country].reverse
+          fixture "reverse_country" do |store|
+            store[:country].reverse
           end
 
           fixture "earth" do
             "Relative Earth"
           end
 
-          fixture "relative_country" do |s|
-            "#{s[:country]}, #{s[:earth]}"
+          fixture "relative_country" do |store|
+            "#{store[:country]}, #{store[:earth]}"
           end
 
-          fixture "absolute_country" do |s|
-            "#{s[:country]}, #{s["/earth"]}"
+          fixture "absolute_country" do |store|
+            "#{store[:country]}, #{store["/earth"]}"
           end
 
           namespace "towns" do
-            fixture "unknown_town" do |s|
-              "Town, #{s["./earth"]}"
+            fixture "unknown_town" do |store|
+              "Town, #{store["./earth"]}"
             end
 
-            fixture "relative_town" do |s|
-              "Town, #{s["../earth"]}"
+            fixture "relative_town" do |store|
+              "Town, #{store["../earth"]}"
             end
 
-            fixture "absolute_town" do |s|
-              "Town, #{s["/earth"]}"
+            fixture "absolute_town" do |store|
+              "Town, #{store["/earth"]}"
             end
           end
         end

@@ -24,11 +24,11 @@ module Fixtury
       @enhancements.any?
     end
 
-    def call(store: nil)
+    def call(store: nil, execution_context: nil)
       maybe_set_store_context(store: store) do
-        value = run_callable(store: store, callable: callable, value: nil)
+        value = run_callable(store: store, callable: callable, execution_context: execution_context, value: nil)
         enhancements.each do |e|
-          value = run_callable(store: store, callable: e, value: value)
+          value = run_callable(store: store, callable: e, execution_context: execution_context, value: value)
         end
         value
       end
@@ -44,7 +44,9 @@ module Fixtury
       end
     end
 
-    def run_callable(store:, callable:, value:)
+    def run_callable(store:, callable:, execution_context:, value:)
+      execution_context ||= self
+
       args = []
       args << value unless value.nil?
       if callable.arity > args.length
@@ -52,10 +54,11 @@ module Fixtury
 
         args << store
       end
+
       if args.length.positive?
-        instance_exec(*args, &callable)
+        execution_context.instance_exec(*args, &callable)
       else
-        instance_eval(&callable)
+        execution_context.instance_eval(&callable)
       end
     end
 
