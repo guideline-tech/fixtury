@@ -8,9 +8,9 @@ module Fixtury
     class GlobalIDTest < Test
 
       def test_it_locates_via_globalid
-        ::GlobalID::Locator.expects(:locate).with("foobar").returns("baz")
+        ::GlobalID::Locator.expects(:locate).with("gid://foobar").returns("baz")
         instance = ::Fixtury::LocatorBackend::GlobalID.new
-        value = instance.load("foobar")
+        value = instance.load("gid://foobar")
         assert_equal "baz", value
       end
 
