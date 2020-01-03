@@ -95,7 +95,7 @@ module Fixtury
         log { "expired #{name}" } unless value
       end
 
-      unless value
+      if value.nil?
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = HOLDER
 
