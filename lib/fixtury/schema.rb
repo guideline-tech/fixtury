@@ -4,6 +4,7 @@ require "fixtury/definition"
 require "fixtury/path"
 require "fixtury/errors/already_defined_error"
 require "fixtury/errors/fixture_not_defined_error"
+require "fixtury/errors/schema_frozen_error"
 
 module Fixtury
   class Schema
@@ -14,12 +15,21 @@ module Fixtury
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
+      @frozen = false
       reset!
     end
 
     def reset!
       @children = {}
       @definitions = {}
+    end
+
+    def freeze!
+      @frozen = true
+    end
+
+    def frozen?
+      !!@frozen
     end
 
     def top_level_schema
@@ -31,7 +41,9 @@ module Fixtury
     end
 
     def define(&block)
+      ensure_not_frozen!
       instance_eval(&block)
+      self
     end
 
     # helpful for inspection
@@ -51,6 +63,7 @@ module Fixtury
     end
 
     def namespace(name, &block)
+      ensure_not_frozen!
       ensure_no_conflict!(name: name, definitions: true, namespaces: false)
 
       child = find_or_create_child_schema(name: name)
@@ -59,17 +72,20 @@ module Fixtury
     end
 
     def fixture(name, &block)
+      ensure_not_frozen!
       ensure_no_conflict!(name: name, definitions: true, namespaces: true)
       create_child_definition(name: name, &block)
     end
 
     def enhance(name, &block)
+      ensure_not_frozen!
       definition = get_definition!(name)
       definition.enhance(&block)
       definition
     end
 
     def merge(other_ns)
+      ensure_not_frozen!
       other_ns.definitions.each_pair do |name, dfn|
         fixture(name, &dfn.callable)
         dfn.enhancements.each do |e|
@@ -173,7 +189,10 @@ module Fixtury
       raise ArgumentError, "`name` must be provided" if name.nil?
       raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
 
-      [self.name, name].join("/")
+      arr = [self.name, name]
+      arr.unshift("") unless self.name.empty?
+
+      arr.join("/")
     end
 
     def ensure_no_conflict!(name:, namespaces:, definitions:)
@@ -186,6 +205,12 @@ module Fixtury
         ns = find_child_schema(name: name)
         raise ::Fixtury::Errors::AlreadyDefinedError, ns.name if ns
       end
+    end
+
+    def ensure_not_frozen!
+      return unless frozen?
+
+      raise ::Fixtury::Errors::SchemaFrozenError
     end
 
   end

@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
+require "active_support/concern"
+require "active_support/core_ext/module/attribute_accessors"
+require "active_support/core_ext/module/delegation"
 require "fixtury/version"
 require "fixtury/schema"
 require "fixtury/locator"
 require "fixtury/store"
 require "fixtury/execution_context"
-require "active_support/concern"
-require "active_support/core_ext/module/attribute_accessors"
-require "active_support/core_ext/module/delegation"
 
 module Fixtury
 

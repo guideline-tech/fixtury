@@ -238,5 +238,27 @@ module Fixtury
       assert_equal "foofoo", foodef.call
     end
 
+    def test_schema_cannot_be_modified_once_frozen
+      schema.define do
+        fixture "foo" do
+          "foo"
+        end
+      end
+
+      schema.freeze!
+
+      assert_raises ::Fixtury::Errors::SchemaFrozenError do
+        schema.define{}
+      end
+
+      assert_raises ::Fixtury::Errors::SchemaFrozenError do
+        schema.fixture("bar"){}
+      end
+
+      assert_raises ::Fixtury::Errors::SchemaFrozenError do
+        schema.enhance("foo"){}
+      end
+    end
+
   end
 end

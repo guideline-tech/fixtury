@@ -5,6 +5,7 @@ require "yaml"
 require "fixtury/locator"
 require "fixtury/errors/circular_dependency_error"
 require "fixtury/execution_context"
+require "fixtury/reference"
 
 module Fixtury
   class Store
@@ -13,18 +14,19 @@ module Fixtury
 
     HOLDER = "__BUILDING_FIXTURE__"
 
-    attr_reader :filepath, :references
+    attr_reader :filepath, :references, :ttl
     attr_reader :schema, :locator
     attr_reader :verbose
     attr_reader :execution_context
 
-    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance, verbose: false)
-      @schema = ::Fixtury.schema
+    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance, verbose: false, ttl: nil, schema: nil)
+      @schema = schema || ::Fixtury.schema
       @verbose = verbose
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
       @execution_context = ::Fixtury::ExecutionContext.new
+      @ttl = ttl ? ttl.to_i : ttl
       self.class.instance ||= self
     end
 
@@ -83,11 +85,13 @@ module Fixtury
         raise ::Fixtury::Errors::CircularDependencyError, full_name
       end
 
+      ref = ensure_ref_still_relevant(ref)
+
       value = nil
 
       if ref
         log { "hit #{name}" }
-        value = load_ref(ref)
+        value = load_ref(ref.value)
       else
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = HOLDER
@@ -95,7 +99,10 @@ module Fixtury
         value = dfn.call(store: self, execution_context: execution_context)
 
         log { "store #{name}" }
-        references[full_name] = dump_ref(value)
+
+        ref = dump_ref(full_name, value)
+        ref = ::Fixtury::Reference.new(full_name, ref)
+        references[full_name] = ref
       end
 
       value
@@ -106,11 +113,19 @@ module Fixtury
       locator.load(ref)
     end
 
-    def dump_ref(value)
+    def dump_ref(_name, value)
       locator.dump(value)
     end
 
-    def log(local_verbose, &block)
+    def ensure_ref_still_relevant(ref)
+      return ref unless ref
+      return ref unless ttl
+      return nil unless ref.created_at >= Time.now.to_i - ttl
+
+      ref
+    end
+
+    def log(local_verbose = false, &block)
       return unless verbose || local_verbose
 
       puts "[fixtury|store] #{block.call}"
