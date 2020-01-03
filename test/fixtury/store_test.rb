@@ -93,5 +93,15 @@ module Fixtury
       end
     end
 
+    def test_store_reloads_value_if_locator_cannot_find
+      store = ::Fixtury::Store.new(schema: schema)
+      ::Fixtury::Definition.any_instance.expects(:call).twice.returns("baz")
+
+      store["foo"]
+      store.stubs(:load_ref).returns(nil)
+
+      store["foo"]
+    end
+
   end
 end

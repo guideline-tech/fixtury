@@ -92,7 +92,10 @@ module Fixtury
       if ref
         log { "hit #{name}" }
         value = load_ref(ref.value)
-      else
+        log { "expired #{name}" } unless value
+      end
+
+      unless value
         # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = HOLDER
 
