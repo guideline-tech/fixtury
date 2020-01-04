@@ -189,10 +189,8 @@ module Fixtury
       raise ArgumentError, "`name` must be provided" if name.nil?
       raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
 
-      arr = [self.name, name]
-      arr.unshift("") unless self.name.empty?
-
-      arr.join("/")
+      arr = ["", self.name, name]
+      arr.join("/").gsub(%r{/{2,}}, "/")
     end
 
     def ensure_no_conflict!(name:, namespaces:, definitions:)

@@ -14,12 +14,19 @@ module Fixtury
 
     HOLDER = "__BUILDING_FIXTURE__"
 
-    attr_reader :filepath, :references, :ttl
+    attr_reader :filepath, :references, :ttl, :auto_refresh_expired
     attr_reader :schema, :locator
     attr_reader :verbose
     attr_reader :execution_context
 
-    def initialize(filepath: nil, locator: ::Fixtury::Locator.instance, verbose: false, ttl: nil, schema: nil)
+    def initialize(
+      filepath: nil,
+      locator: ::Fixtury::Locator.instance,
+      verbose: false,
+      ttl: nil,
+      schema: nil,
+      auto_refresh_expired: false
+    )
       @schema = schema || ::Fixtury.schema
       @verbose = verbose
       @locator = locator
@@ -27,6 +34,7 @@ module Fixtury
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
       @execution_context = ::Fixtury::ExecutionContext.new
       @ttl = ttl ? ttl.to_i : ttl
+      @auto_refresh_expired = !!auto_refresh_expired
       self.class.instance ||= self
     end
 
@@ -34,6 +42,16 @@ module Fixtury
       return unless filepath
 
       ::File.open(filepath, "wb") { |io| io.write(references.to_yaml) }
+    end
+
+    def clear_expired_references!
+      return unless ttl
+
+      references.delete_if do |name, ref|
+        is_expired = ref_expired?(ref)
+        log { "expiring #{name}" } if is_expired
+        is_expired
+      end
     end
 
     def load_all(schema = self.schema)
@@ -85,14 +103,21 @@ module Fixtury
         raise ::Fixtury::Errors::CircularDependencyError, full_name
       end
 
-      ref = ensure_ref_still_relevant(ref)
+      if ref && auto_refresh_expired && ref_expired?(ref)
+        log { "refreshing #{full_name}" }
+        clear_ref(ref)
+        ref = nil
+      end
 
       value = nil
 
       if ref
-        log { "hit #{name}" }
+        log { "hit #{full_name}" }
         value = load_ref(ref.value)
-        log { "expired #{name}" } unless value
+        unless value
+          clear_ref(full_name)
+          log { "missing #{full_name}" }
+        end
       end
 
       if value.nil?
@@ -101,7 +126,7 @@ module Fixtury
 
         value = dfn.call(store: self, execution_context: execution_context)
 
-        log { "store #{name}" }
+        log { "store #{full_name}" }
 
         ref = dump_ref(full_name, value)
         ref = ::Fixtury::Reference.new(full_name, ref)
@@ -120,12 +145,14 @@ module Fixtury
       locator.dump(value)
     end
 
-    def ensure_ref_still_relevant(ref)
-      return ref unless ref
-      return ref unless ttl
-      return nil unless ref.created_at >= Time.now.to_i - ttl
+    def clear_ref(name)
+      references.delete(name)
+    end
 
-      ref
+    def ref_expired?(ref)
+      return false unless ttl
+
+      ref.created_at < (Time.now.to_i - ttl)
     end
 
     def log(local_verbose = false, &block)

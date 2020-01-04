@@ -55,6 +55,7 @@ module Fixtury
     def setup_fixtury_fixtures
       return unless use_transactional_fixtures
 
+      clear_expired_fixtury_fixtures!
       load_all_fixtury_fixtures!
 
       fixtury_database_connections.each do |conn|
@@ -66,6 +67,10 @@ module Fixtury
       return unless use_transactional_fixtures
 
       fixtury_database_connections.each(&:rollback_transaction)
+    end
+
+    def clear_expired_fixtury_fixtures!
+      ::Fixtury::Store.instance.clear_expired_references!
     end
 
     def load_all_fixtury_fixtures!

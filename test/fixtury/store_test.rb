@@ -58,7 +58,7 @@ module Fixtury
 
     def test_a_ttl_store_does_not_return_expired_refs
       ttl = 10
-      ttl_store = ::Fixtury::Store.new(schema: schema, ttl: ttl)
+      ttl_store = ::Fixtury::Store.new(schema: schema, ttl: ttl, auto_refresh_expired: true)
       ::Fixtury::Definition.any_instance.expects(:call).twice.returns("baz")
 
       t = Time.now
