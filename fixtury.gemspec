@@ -13,8 +13,7 @@ Gem::Specification.new do |spec|
   spec.summary       = "Treat fixtures like factories and factories like fixtures"
   spec.homepage      = "https://github.com/guideline-tech/fixtury"
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
-
+  spec.metadata["allowed_push_host"] = "https://rubygems.pkg.github.com/guideline-tech"
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = spec.homepage
