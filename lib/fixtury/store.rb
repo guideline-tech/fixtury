@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "fileutils"
 require "singleton"
 require "yaml"
 require "fixtury/locator"
@@ -11,8 +12,6 @@ module Fixtury
   class Store
 
     cattr_accessor :instance
-
-    HOLDER = "__BUILDING_FIXTURE__"
 
     attr_reader :filepath, :references, :ttl, :auto_refresh_expired
     attr_reader :schema, :locator
@@ -41,7 +40,13 @@ module Fixtury
     def dump_to_file
       return unless filepath
 
-      ::File.open(filepath, "wb") { |io| io.write(references.to_yaml) }
+      ::FileUtils.mkdir_p(File.dirname(filepath))
+
+      writable = references.each_with_object({}) do |(full_name, ref), h|
+        h[full_name] = ref if ref.real?
+      end
+
+      ::File.open(filepath, "wb") { |io| io.write(writable.to_yaml) }
     end
 
     def clear_expired_references!
@@ -59,7 +64,7 @@ module Fixtury
         get(dfn.name)
       end
 
-      schema.schemas.each_pair do |_key, ns|
+      schema.children.each_pair do |_key, ns|
         load_all(ns)
       end
     end
@@ -89,7 +94,7 @@ module Fixtury
       dfn = schema.get_definition!(name)
       full_name = dfn.name
       ref = references[full_name]
-      result = ref && ref != HOLDER
+      result = ref&.real?
       log { result ? "hit #{full_name}" : "miss #{full_name}" }
       result
     end
@@ -99,13 +104,13 @@ module Fixtury
       full_name = dfn.name
       ref = references[full_name]
 
-      if ref == HOLDER
+      if ref&.holder?
         raise ::Fixtury::Errors::CircularDependencyError, full_name
       end
 
       if ref && auto_refresh_expired && ref_expired?(ref)
         log { "refreshing #{full_name}" }
-        clear_ref(ref)
+        clear_ref(full_name)
         ref = nil
       end
 
@@ -114,15 +119,15 @@ module Fixtury
       if ref
         log { "hit #{full_name}" }
         value = load_ref(ref.value)
-        unless value
+        if value.nil?
           clear_ref(full_name)
           log { "missing #{full_name}" }
         end
       end
 
       if value.nil?
-        # set the references to HOLDER so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
-        references[full_name] = HOLDER
+        # set the references to a holder value so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
+        references[full_name] = ::Fixtury::Reference.holder(full_name)
 
         value = dfn.call(store: self, execution_context: execution_context)
 

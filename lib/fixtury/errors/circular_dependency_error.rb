@@ -5,7 +5,7 @@ module Fixtury
     class CircularDependencyError < ::StandardError
 
       def initialize(name)
-        super("One of the depdencies of #{name} is dependent on #{name}.")
+        super("One of the dependencies of #{name} is dependent on #{name}.")
       end
 
     end
