@@ -37,7 +37,7 @@ GEM
     mocha (1.8.0)
       metaclass (~> 0.0.1)
     path_expander (1.1.0)
-    rake (10.5.0)
+    rake (13.0.1)
     ruby-progressbar (1.10.1)
     sqlite (1.0.2)
     thread_safe (0.3.6)
@@ -57,7 +57,7 @@ DEPENDENCIES
   minitest (~> 5.0)
   minitest-reporters
   mocha
-  rake (~> 10.0)
+  rake (~> 13.0)
   sqlite
 
 BUNDLED WITH
