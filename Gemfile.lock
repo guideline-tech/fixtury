@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fixtury (0.1.0.alpha)
+    fixtury (0.1.0.alpha2)
 
 GEM
   remote: https://rubygems.org/
@@ -61,4 +61,4 @@ DEPENDENCIES
   sqlite
 
 BUNDLED WITH
-   2.0.2
+   2.1.4
