@@ -22,11 +22,14 @@ module Fixtury
 
     def fixtury(name)
       raise ArgumentError unless self.fixtury_dependencies.include?(name.to_s)
+      return nil unless ::Fixtury::Store.instance
 
       ::Fixtury::Store.instance.get(name)
     end
 
     def fixtury_loaded?(name)
+      return false unless ::Fixtury::Store.instance
+
       ::Fixtury::Store.instance.loaded?(name)
     end
 
@@ -70,6 +73,8 @@ module Fixtury
     end
 
     def clear_expired_fixtury_fixtures!
+      return unless ::Fixtury::Store.instance
+
       ::Fixtury::Store.instance.clear_expired_references!
     end
 
