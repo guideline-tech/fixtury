@@ -67,7 +67,7 @@ module Fixtury
       ensure_no_conflict!(name: name, definitions: true, namespaces: false)
 
       child = find_or_create_child_schema(name: name)
-      child.instance_eval(&block)
+      child.instance_eval(&block) if block_given?
       child
     end
 

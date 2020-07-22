@@ -53,7 +53,7 @@ module Fixtury
       return unless ttl
 
       references.delete_if do |name, ref|
-        is_expired = ref_expired?(ref)
+        is_expired = ref_invalid?(ref)
         log { "expiring #{name}" } if is_expired
         is_expired
       end
@@ -108,7 +108,7 @@ module Fixtury
         raise ::Fixtury::Errors::CircularDependencyError, full_name
       end
 
-      if ref && auto_refresh_expired && ref_expired?(ref)
+      if ref && auto_refresh_expired && ref_invalid?(ref)
         log { "refreshing #{full_name}" }
         clear_ref(full_name)
         ref = nil
@@ -154,10 +154,10 @@ module Fixtury
       references.delete(name)
     end
 
-    def ref_expired?(ref)
-      return false unless ttl
+    def ref_invalid?(ref)
+      return true if ttl && ref.created_at < (Time.now.to_i - ttl)
 
-      ref.created_at < (Time.now.to_i - ttl)
+      !locator.recognize?(ref.value)
     end
 
     def log(local_verbose = false, &block)

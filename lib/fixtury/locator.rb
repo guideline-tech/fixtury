@@ -24,6 +24,12 @@ module Fixtury
       @backend = backend
     end
 
+    def recognize?(ref)
+      raise ArgumentError, "Unable to recognize a nil ref" if ref.nil?
+
+      backend.recognized_reference?(ref)
+    end
+
     def load(ref)
       raise ArgumentError, "Unable to load a nil ref" if ref.nil?
 

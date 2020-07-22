@@ -3,7 +3,7 @@
 require "fixtury/store"
 
 module Fixtury
-  module Hooks
+  module TestHooks
 
     extend ::ActiveSupport::Concern
 
@@ -18,11 +18,38 @@ module Fixtury
         self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
       end
 
+      def define_fixture(name, &block)
+        fixture_name = name
+        namespace_names = self.name.underscore.split("/")
+
+        ns = ::Fixtury.schema
+
+        namespace_names.each do |ns_name|
+          ns = ns.namespace(ns_name){}
+        end
+
+        ns.fixture(fixture_name, &block)
+
+        fixtury("#{namespace_names.join("/")}/#{fixture_name}")
+      end
+
     end
 
     def fixtury(name)
-      raise ArgumentError unless self.fixtury_dependencies.include?(name.to_s)
       return nil unless ::Fixtury::Store.instance
+
+      name = name.to_s
+
+      unless name.include?("/")
+        local_name = "#{self.class.name.underscore}/#{name}"
+        if self.fixtury_dependencies.include?(local_name)
+          return ::Fixtury::Store.instance.get(local_name)
+        end
+      end
+
+      unless self.fixtury_dependencies.include?(name)
+        raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
+      end
 
       ::Fixtury::Store.instance.get(name)
     end
