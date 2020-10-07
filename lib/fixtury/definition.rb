@@ -25,6 +25,8 @@ module Fixtury
     end
 
     def call(store: nil, execution_context: nil)
+      execution_context ||= ::Fixtury::ExecutionContext.new
+
       maybe_set_store_context(store: store) do
         value = run_callable(store: store, callable: callable, execution_context: execution_context, value: nil)
         enhancements.each do |e|
@@ -45,8 +47,6 @@ module Fixtury
     end
 
     def run_callable(store:, callable:, execution_context:, value:)
-      execution_context ||= self
-
       args = []
       args << value unless value.nil?
       if callable.arity > args.length
@@ -55,11 +55,24 @@ module Fixtury
         args << store
       end
 
-      if args.length.positive?
-        execution_context.instance_exec(*args, &callable)
-      else
-        execution_context.instance_eval(&callable)
+      execution_context_hooks(execution_context) do
+        if args.length.positive?
+          execution_context.instance_exec(*args, &callable)
+        else
+          execution_context.instance_eval(&callable)
+        end
       end
+    end
+
+    def execution_context_hooks(execution_context)
+      execution_context.before_fixture(self) if execution_context.respond_to?(:before_fixture)
+      value = if execution_context.respond_to?(:around_fixture)
+        execution_context.around_fixture(self) { yield }
+      else
+        yield
+      end
+      execution_context.after_fixture(self, value) if execution_context.respond_to?(:after_fixture)
+      value
     end
 
   end

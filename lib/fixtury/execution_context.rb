@@ -4,5 +4,13 @@
 module Fixtury
   class ExecutionContext
 
+    def before_fixture(_dfn); end
+
+    def around_fixture(_dfn)
+      yield
+    end
+
+    def after_fixture(_dfn, _value); end
+
   end
 end
