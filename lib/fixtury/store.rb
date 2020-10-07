@@ -169,14 +169,14 @@ module Fixtury
       !locator.recognize?(ref.value)
     end
 
-    def log(level: LOG_LEVEL_DEBUG)
+    def log(level: LOG_LEVEL_DEBUG, name: "store")
       desired_level = LOG_LEVELS.fetch(log_level) { LOG_LEVEL_NONE }
       return if desired_level == LOG_LEVEL_NONE
 
       message_level = LOG_LEVELS.fetch(level) { LOG_LEVEL_DEBUG }
       return unless desired_level >= message_level
 
-      puts "[fixtury|store] #{yield}"
+      puts "[fixtury|#{name}] #{yield}"
     end
 
   end
