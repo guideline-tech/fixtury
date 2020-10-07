@@ -55,12 +55,10 @@ module Fixtury
         args << store
       end
 
-      if args.length.positive?
-        execution_context_hooks(execution_context) do
+      execution_context_hooks(execution_context) do
+        if args.length.positive?
           execution_context.instance_exec(*args, &callable)
-        end
-      else
-        execution_context_hooks(execution_context) do
+        else
           execution_context.instance_eval(&callable)
         end
       end
