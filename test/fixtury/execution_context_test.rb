@@ -5,7 +5,7 @@ require "test_helper"
 module Fixtury
   class ExecutionContextTest < Test
 
-    class ObserverExecutionContext < ::Fixtury::ExecutionContext
+    class ObserverExecutionContext
 
       attr_reader :events
 
@@ -32,7 +32,7 @@ module Fixtury
 
     end
 
-    class ModifyingExecutionContext < ::Fixtury::ExecutionContext
+    class ModifyingExecutionContext
 
       def around_fixture(_dfn)
         value = yield

@@ -7,7 +7,6 @@ require "fixtury/version"
 require "fixtury/schema"
 require "fixtury/locator"
 require "fixtury/store"
-require "fixtury/execution_context"
 
 module Fixtury
 
