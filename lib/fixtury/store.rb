@@ -5,7 +5,6 @@ require "singleton"
 require "yaml"
 require "fixtury/locator"
 require "fixtury/errors/circular_dependency_error"
-require "fixtury/execution_context"
 require "fixtury/reference"
 
 module Fixtury
@@ -40,7 +39,7 @@ module Fixtury
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
-      @execution_context = execution_context || ::Fixtury::ExecutionContext.new
+      @execution_context = execution_context
       @ttl = ttl ? ttl.to_i : ttl
       @auto_refresh_expired = !!auto_refresh_expired
       self.class.instance ||= self
