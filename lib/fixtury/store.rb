@@ -80,7 +80,7 @@ module Fixtury
     def clear_cache!(pattern: nil)
       pattern ||= "*"
       pattern = "/" + pattern unless pattern.start_with?("/")
-      glob = pattern.ends_with?("*")
+      glob = pattern.end_with?("*")
       pattern = pattern[0...-1] if glob
       references.delete_if do |key, _value|
         hit = glob ? key.start_with?(pattern) : key == pattern
