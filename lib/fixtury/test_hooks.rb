@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fixtury/store"
+require "active_support/core_ext/class/attribute"
 
 module Fixtury
   module TestHooks
@@ -14,36 +15,64 @@ module Fixtury
 
     module ClassMethods
 
-      def fixtury(*names)
-        self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
-      end
+      def fixtury(*names, &definition)
+        opts = names.extract_options!
 
-      def define_fixture(name, &block)
-        fixture_name = name
-        namespace_names = self.name.underscore.split("/")
+        # define fixtures if blocks are given
+        if block_given?
+          raise ArgumentError, "A fixture cannot be defined in an anonymous class" if name.nil?
 
-        ns = ::Fixtury.schema
+          namespace = name.underscore
 
-        namespace_names.each do |ns_name|
-          ns = ns.namespace(ns_name){}
+          ns = ::Fixtury.schema
+
+          namespace.split("/").each do |ns_name|
+            ns = ns.namespace(ns_name){}
+          end
+
+          names.each do |fixture_name|
+            ns.fixture(fixture_name, &definition)
+            self.fixtury_dependencies += ["#{namespace}/#{fixture_name}"]
+          end
+
+        # otherwise, just record the dependency
+        else
+          self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
         end
 
-        ns.fixture(fixture_name, &block)
+        if opts[:accessor]
 
-        fixtury("#{namespace_names.join("/")}/#{fixture_name}")
+          if opts[:accessor] != true && names.length > 1
+            raise ArgumentError, "A named :accessor option is only available when providing one fixture"
+          end
+
+          names.each do |fixture_name|
+            method_name = opts[:accessor] == true ? fixture_name.split("/").last : opts[:accessor]
+            ivar = :"@#{method_name}"
+
+            class_eval <<-EV, __FILE__, __LINE__ + 1
+              def #{method_name}
+                return #{ivar} if defined?(#{ivar})
+
+                value = fixtury("#{fixture_name}")
+                #{ivar} = value
+              end
+            EV
+          end
+        end
       end
 
     end
 
     def fixtury(name)
-      return nil unless ::Fixtury::Store.instance
+      return nil unless fixtury_store
 
       name = name.to_s
 
       unless name.include?("/")
         local_name = "#{self.class.name.underscore}/#{name}"
         if self.fixtury_dependencies.include?(local_name)
-          return ::Fixtury::Store.instance.get(local_name)
+          return fixtury_store.get(local_name)
         end
       end
 
@@ -51,13 +80,17 @@ module Fixtury
         raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
       end
 
-      ::Fixtury::Store.instance.get(name)
+      fixtury_store.get(name)
+    end
+
+    def fixtury_store
+      ::Fixtury::Store.instance
     end
 
     def fixtury_loaded?(name)
-      return false unless ::Fixtury::Store.instance
+      return false unless fixtury_store
 
-      ::Fixtury::Store.instance.loaded?(name)
+      fixtury_store.loaded?(name)
     end
 
     def fixtury_database_connections
@@ -100,9 +133,9 @@ module Fixtury
     end
 
     def clear_expired_fixtury_fixtures!
-      return unless ::Fixtury::Store.instance
+      return unless fixtury_store
 
-      ::Fixtury::Store.instance.clear_expired_references!
+      fixtury_store.clear_expired_references!
     end
 
     def load_all_fixtury_fixtures!
