@@ -21,7 +21,7 @@ module Fixtury
     end
 
     def test_the_callable_with_one_argument_errors_when_no_store_is_provided
-      dfn = ::Fixtury::Definition.new(name: "foo") { |_x| "bar" }
+      dfn = ::Fixtury::Definition.new(name: "foo") { |x| x["whatever"] }
       assert_raises { dfn.call }
     end
 

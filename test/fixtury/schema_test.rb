@@ -227,8 +227,8 @@ module Fixtury
       schema.define do
         merge o
 
-        enhance "foo" do |value|
-          value * 2
+        enhance "foo" do |e|
+          e.value * 2
         end
       end
 

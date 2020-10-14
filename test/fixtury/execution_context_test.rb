@@ -13,17 +13,22 @@ module Fixtury
         @events = []
       end
 
-      def before_fixture(*args)
-        @events << ["before", args]
+      def before_fixture(exec)
+        @events << ["before", exec.definition, exec.value, exec.execution_type]
       end
 
-      def around_fixture(*args)
-        @events << ["around", args]
+      def around_fixture(exec)
+        @events << ["around", exec.definition, exec.value, exec.execution_type]
         yield
       end
 
-      def after_fixture(*args)
-        @events << ["after", args]
+      def after_fixture(exec)
+        @events << ["after", exec.definition, exec.value, exec.execution_type]
+      end
+
+      def around_fixture_get(exec)
+        @events << ["around_fixture_get", exec.definition, exec.value, exec.execution_type]
+        yield
       end
 
     end
@@ -34,7 +39,7 @@ module Fixtury
 
     class ModifyingExecutionContext
 
-      def around_fixture(_dfn)
+      def around_fixture(_exec)
         value = yield
         value * 2
       end
@@ -49,11 +54,12 @@ module Fixtury
       ctxt = ObserverExecutionContext.new
       assert_equal [], ctxt.events
 
-      fixture = dfn.call(execution_context: ctxt)
+      fixture_value = dfn.call(execution_context: ctxt)
+
       expected = [
-        ["before", [dfn]],
-        ["around", [dfn]],
-        ["after", [dfn, fixture]],
+        ["before", dfn, nil, :definition],
+        ["around", dfn, nil, :definition],
+        ["after", dfn, fixture_value, :definition],
       ]
       assert_equal(expected, ctxt.events)
     end
@@ -67,6 +73,29 @@ module Fixtury
       ctxt = ModifyingExecutionContext.new
       value = dfn.call(execution_context: ctxt)
       assert_equal "foofoo", value
+    end
+
+    def test_execution_can_observe_items_retrieved_within_the_definition
+      schema = ::Fixtury::Schema.new(parent: nil, name: "test")
+      schema.define do
+        fixture "foo" do
+          "foo"
+        end
+
+        fixture "bar" do |x|
+          x["foo"].reverse
+        end
+      end
+
+      ctxt = ObserverExecutionContext.new
+      store = ::Fixtury::Store.new(execution_context: ctxt, schema: schema)
+      dfn = schema.get_definition!("bar")
+
+      store["bar"]
+
+      event = ctxt.events.detect { |e| e[0] == "around_fixture_get" }
+
+      assert_equal(["around_fixture_get", dfn, nil, :definition], event)
     end
 
   end
