@@ -232,10 +232,14 @@ module Fixtury
         end
       end
 
-      foodef = schema.get_definition!("foo")
+      foofoodef = schema.get_definition!("foo")
 
-      assert_equal true, foodef.enhanced?
-      assert_equal "foofoo", foodef.call
+      assert_equal true, foofoodef.enhanced?
+      assert_equal "foofoo", foofoodef.call
+
+      foodef = o.get_definition!("foo")
+      assert_equal false, foodef.enhanced?
+      assert_equal "foo", foodef.call
     end
 
     def test_schema_cannot_be_modified_once_frozen

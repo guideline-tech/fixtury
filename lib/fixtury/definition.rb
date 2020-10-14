@@ -1,7 +1,25 @@
 # frozen_string_literal: true
 
+require "delegate"
+
 module Fixtury
   class Definition
+
+    class StoreProxy < ::SimpleDelegator
+
+      def initialize(store, ctxt)
+        @ctxt = ctxt
+        super(store)
+      end
+
+      def get(*args)
+        value = __getobj__.get(*args)
+        value = @ctxt.on_fixture_get(value) if @ctxt&.respond_to?(:on_fixture_get)
+        value
+      end
+      alias [] get
+
+    end
 
     attr_reader :name
     attr_reader :schema
@@ -50,7 +68,7 @@ module Fixtury
       if callable.arity > args.length
         raise ArgumentError, "A store store must be provided if the definition expects it." unless store
 
-        args << store
+        args << StoreProxy.new(store, execution_context)
       end
 
       provide_execution_context_hooks(execution_context) do |ctxt|
