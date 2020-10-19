@@ -50,13 +50,11 @@ module Fixtury
     end
 
     def provide_execution_context_hooks
-      execution_context.before_fixture(self) if execution_context.respond_to?(:before_fixture)
       @value = if execution_context.respond_to?(:around_fixture)
         execution_context.around_fixture(self) { yield }
       else
         yield
       end
-      execution_context.after_fixture(self) if execution_context.respond_to?(:after_fixture)
     end
 
     def maybe_set_store_context

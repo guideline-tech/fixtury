@@ -13,17 +13,9 @@ module Fixtury
         @events = []
       end
 
-      def before_fixture(exec)
-        @events << ["before", exec.definition, exec.value, exec.execution_type]
-      end
-
       def around_fixture(exec)
         @events << ["around", exec.definition, exec.value, exec.execution_type]
         yield
-      end
-
-      def after_fixture(exec)
-        @events << ["after", exec.definition, exec.value, exec.execution_type]
       end
 
       def around_fixture_get(exec)
@@ -54,12 +46,10 @@ module Fixtury
       ctxt = ObserverExecutionContext.new
       assert_equal [], ctxt.events
 
-      fixture_value = dfn.call(execution_context: ctxt)
+      dfn.call(execution_context: ctxt)
 
       expected = [
-        ["before", dfn, nil, :definition],
         ["around", dfn, nil, :definition],
-        ["after", dfn, fixture_value, :definition],
       ]
       assert_equal(expected, ctxt.events)
     end

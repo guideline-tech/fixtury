@@ -40,14 +40,16 @@ module Fixtury
           self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
         end
 
-        if opts[:accessor]
+        accessor_option = opts.key?(:accessor) ? opts[:accessor] : true
 
-          if opts[:accessor] != true && names.length > 1
+        if accessor_option
+
+          if accessor_option != true && names.length > 1
             raise ArgumentError, "A named :accessor option is only available when providing one fixture"
           end
 
           names.each do |fixture_name|
-            method_name = opts[:accessor] == true ? fixture_name.split("/").last : opts[:accessor]
+            method_name = accessor_option == true ? fixture_name.split("/").last : accessor_option
             ivar = :"@#{method_name}"
 
             class_eval <<-EV, __FILE__, __LINE__ + 1
