@@ -227,15 +227,19 @@ module Fixtury
       schema.define do
         merge o
 
-        enhance "foo" do |value|
-          value * 2
+        enhance "foo" do |e|
+          e.value * 2
         end
       end
 
-      foodef = schema.get_definition!("foo")
+      foofoodef = schema.get_definition!("foo")
 
-      assert_equal true, foodef.enhanced?
-      assert_equal "foofoo", foodef.call
+      assert_equal true, foofoodef.enhanced?
+      assert_equal "foofoo", foofoodef.call
+
+      foodef = o.get_definition!("foo")
+      assert_equal false, foodef.enhanced?
+      assert_equal "foo", foodef.call
     end
 
     def test_schema_cannot_be_modified_once_frozen
@@ -258,6 +262,22 @@ module Fixtury
       assert_raises ::Fixtury::Errors::SchemaFrozenError do
         schema.enhance("foo"){}
       end
+    end
+
+    def test_around_fixture_hook_is_provided_on_all_fixture_definition_calls
+      schema.around_fixture do |_exec, dfn|
+        value = dfn.call
+        value * 2
+      end
+
+      schema.define do
+        fixture "foo" do
+          "Foo"
+        end
+      end
+
+      dfn = schema.get_definition!("foo")
+      assert_equal "FooFoo", dfn.call
     end
 
   end

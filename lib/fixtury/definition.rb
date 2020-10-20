@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fixtury/definition_executor"
+
 module Fixtury
   class Definition
 
@@ -24,55 +26,23 @@ module Fixtury
       @enhancements.any?
     end
 
+    def info
+      {
+        name: name,
+        loc: location_from_callable(callable),
+        enhancements: enhancements.map { |e| location_from_callable(e) },
+      }
+    end
+
     def call(store: nil, execution_context: nil)
-      maybe_set_store_context(store: store) do
-        value = run_callable(store: store, callable: callable, execution_context: execution_context, value: nil)
-        enhancements.each do |e|
-          value = run_callable(store: store, callable: e, execution_context: execution_context, value: value)
-        end
-        value
-      end
+      executor = ::Fixtury::DefinitionExecutor.new(store: store, definition: self, execution_context: execution_context)
+      executor.__call
     end
 
-    protected
+    def location_from_callable(callable)
+      return nil unless callable.respond_to?(:source_location)
 
-    def maybe_set_store_context(store:)
-      return yield unless store
-
-      store.with_relative_schema(schema) do
-        yield
-      end
-    end
-
-    def run_callable(store:, callable:, execution_context: nil, value:)
-      args = []
-      args << value unless value.nil?
-      if callable.arity > args.length
-        raise ArgumentError, "A store store must be provided if the definition expects it." unless store
-
-        args << store
-      end
-
-      provide_execution_context_hooks(execution_context) do |ctxt|
-        if args.length.positive?
-          ctxt.instance_exec(*args, &callable)
-        else
-          ctxt.instance_eval(&callable)
-        end
-      end
-    end
-
-    def provide_execution_context_hooks(execution_context)
-      return yield self unless execution_context
-
-      execution_context.before_fixture(self) if execution_context.respond_to?(:before_fixture)
-      value = if execution_context.respond_to?(:around_fixture)
-        execution_context.around_fixture(self) { yield execution_context }
-      else
-        yield execution_context
-      end
-      execution_context.after_fixture(self, value) if execution_context.respond_to?(:after_fixture)
-      value
+      callable.source_location.join(":")
     end
 
   end

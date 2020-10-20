@@ -9,14 +9,35 @@ require "fixtury/errors/schema_frozen_error"
 module Fixtury
   class Schema
 
-    attr_reader :definitions, :children, :name, :parent, :relative_name
+    attr_reader :definitions, :children, :name, :parent, :relative_name, :around_fixture_definition
 
     def initialize(parent:, name:)
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
+      @around_fixture_definition = nil
       @frozen = false
       reset!
+    end
+
+    def around_fixture(&block)
+      @around_fixture_definition = block
+    end
+
+    def around_fixture_hook(executor, &definition)
+      maybe_invoke_parent_around_fixture_hook(executor) do
+        if around_fixture_definition.nil?
+          yield
+        else
+          around_fixture_definition.call(executor, definition)
+        end
+      end
+    end
+
+    def maybe_invoke_parent_around_fixture_hook(executor, &block)
+      return yield unless parent
+
+      parent.around_fixture_hook(executor, &block)
     end
 
     def reset!
@@ -99,6 +120,8 @@ module Fixtury
         end
       end
 
+      around_fixture(&other_ns.around_fixture_definition) if other_ns.around_fixture_definition
+
       self
     end
 
@@ -172,6 +195,7 @@ module Fixtury
           self.class.new(name: child_name, parent: self)
         end
       end
+      child
     end
 
     def find_child_definition(name:)
@@ -187,7 +211,7 @@ module Fixtury
     def build_child_name(name:)
       name = name&.to_s
       raise ArgumentError, "`name` must be provided" if name.nil?
-      raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless name.match(/^[a-zA-Z_0-9]+$/)
+      raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless /^[a-zA-Z_0-9]+$/.match?(name)
 
       arr = ["", self.name, name]
       arr.join("/").gsub(%r{/{2,}}, "/")

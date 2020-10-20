@@ -40,14 +40,16 @@ module Fixtury
           self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
         end
 
-        if opts[:accessor]
+        accessor_option = opts.key?(:accessor) ? opts[:accessor] : true
 
-          if opts[:accessor] != true && names.length > 1
+        if accessor_option
+
+          if accessor_option != true && names.length > 1
             raise ArgumentError, "A named :accessor option is only available when providing one fixture"
           end
 
           names.each do |fixture_name|
-            method_name = opts[:accessor] == true ? fixture_name.split("/").last : opts[:accessor]
+            method_name = accessor_option == true ? fixture_name.split("/").last : accessor_option
             ivar = :"@#{method_name}"
 
             class_eval <<-EV, __FILE__, __LINE__ + 1
@@ -72,7 +74,7 @@ module Fixtury
       unless name.include?("/")
         local_name = "#{self.class.name.underscore}/#{name}"
         if self.fixtury_dependencies.include?(local_name)
-          return fixtury_store.get(local_name)
+          return fixtury_store.get(local_name, execution_context: self)
         end
       end
 
@@ -80,7 +82,7 @@ module Fixtury
         raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
       end
 
-      fixtury_store.get(name)
+      fixtury_store.get(name, execution_context: self)
     end
 
     def fixtury_store
