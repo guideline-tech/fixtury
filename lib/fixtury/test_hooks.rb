@@ -74,7 +74,7 @@ module Fixtury
       unless name.include?("/")
         local_name = "#{self.class.name.underscore}/#{name}"
         if self.fixtury_dependencies.include?(local_name)
-          return fixtury_store.get(local_name)
+          return fixtury_store.get(local_name, execution_context: self)
         end
       end
 
@@ -82,7 +82,7 @@ module Fixtury
         raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
       end
 
-      fixtury_store.get(name)
+      fixtury_store.get(name, execution_context: self)
     end
 
     def fixtury_store

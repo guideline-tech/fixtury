@@ -22,8 +22,12 @@ module Fixtury
         end
 
         fixtury "bux" do
-          "bux"
+          some_helper_method
         end
+      end
+
+      def some_helper_method
+        "bux"
       end
 
       def fixtury_store

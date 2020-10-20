@@ -7,53 +7,53 @@ module Fixtury
 
     def initialize(store: nil, execution_context: nil, definition:)
       @store = store
-      @execution_context = execution_context || self
       @definition = definition
+      @execution_context = execution_context
       @execution_type = nil
       @value = nil
     end
 
     def __call
       maybe_set_store_context do
-        run_callable(callable: definition.callable, type: :definition)
-        definition.enhancements.each do |e|
-          run_callable(callable: e, type: :enhancement)
+        provide_schema_hooks do
+          run_callable(callable: definition.callable, type: :definition)
+          definition.enhancements.each do |e|
+            run_callable(callable: e, type: :enhancement)
+          end
         end
       end
+
       value
     end
 
-    def get(*args)
+    def get(name)
       raise ArgumentError, "A store is required for #{definition.name}" unless store
 
-      if execution_context&.respond_to?(:around_fixture_get)
-        execution_context.around_fixture_get(self) do
-          store.get(*args)
-        end
-      else
-        store.get(*args)
-      end
+      store.get(name, execution_context: execution_context)
     end
     alias [] get
+
+    def method_missing(method_name, *args, &block)
+      return super unless execution_context
+
+      execution_context.send(method_name, *args, &block)
+    end
+
+    def respond_to_missing?(method_name)
+      return super unless execution_context
+
+      execution_context.respond_to?(method_name, true)
+    end
 
     private
 
     def run_callable(callable:, type:)
       @execution_type = type
-      provide_execution_context_hooks do
-        if callable.arity.positive?
-          execution_context.instance_exec(self, &callable)
-        else
-          execution_context.instance_eval(&callable)
-        end
-      end
-    end
 
-    def provide_execution_context_hooks
-      @value = if execution_context.respond_to?(:around_fixture)
-        execution_context.around_fixture(self) { yield }
+      @value = if callable.arity.positive?
+        instance_exec(self, &callable)
       else
-        yield
+        instance_eval(&callable)
       end
     end
 
@@ -62,6 +62,15 @@ module Fixtury
 
       store.with_relative_schema(definition.schema) do
         yield
+      end
+    end
+
+    def provide_schema_hooks
+      return yield unless definition.schema
+
+      @value = definition.schema.around_fixture_hook(self) do
+        yield
+        value
       end
     end
 

@@ -264,5 +264,21 @@ module Fixtury
       end
     end
 
+    def test_around_fixture_hook_is_provided_on_all_fixture_definition_calls
+      schema.around_fixture do |_exec, dfn|
+        value = dfn.call
+        value * 2
+      end
+
+      schema.define do
+        fixture "foo" do
+          "Foo"
+        end
+      end
+
+      dfn = schema.get_definition!("foo")
+      assert_equal "FooFoo", dfn.call
+    end
+
   end
 end

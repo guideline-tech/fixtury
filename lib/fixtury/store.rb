@@ -21,7 +21,6 @@ module Fixtury
     attr_reader :filepath, :references, :ttl, :auto_refresh_expired
     attr_reader :schema, :locator
     attr_reader :log_level
-    attr_reader :execution_context
 
     def initialize(
       filepath: nil,
@@ -29,7 +28,6 @@ module Fixtury
       log_level: nil,
       ttl: nil,
       schema: nil,
-      execution_context: nil,
       auto_refresh_expired: false
     )
       @schema = schema || ::Fixtury.schema
@@ -39,7 +37,6 @@ module Fixtury
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
-      @execution_context = execution_context
       @ttl = ttl ? ttl.to_i : ttl
       @auto_refresh_expired = !!auto_refresh_expired
       self.class.instance ||= self
@@ -107,7 +104,7 @@ module Fixtury
       result
     end
 
-    def get(name)
+    def get(name, execution_context: nil)
       dfn = schema.get_definition!(name)
       full_name = dfn.name
       ref = references[full_name]
