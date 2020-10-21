@@ -22,7 +22,7 @@ module Fixtury
         if block_given?
           raise ArgumentError, "A fixture cannot be defined in an anonymous class" if name.nil?
 
-          namespace = name.underscore
+          namespace = fixtury_namespace
 
           ns = ::Fixtury.schema
 
@@ -32,7 +32,7 @@ module Fixtury
 
           names.each do |fixture_name|
             ns.fixture(fixture_name, &definition)
-            self.fixtury_dependencies += ["#{namespace}/#{fixture_name}"]
+            self.fixtury_dependencies += ["/#{namespace}/#{fixture_name}"]
           end
 
         # otherwise, just record the dependency
@@ -64,6 +64,10 @@ module Fixtury
         end
       end
 
+      def fixtury_namespace
+        name.underscore
+      end
+
     end
 
     def fixtury(name)
@@ -71,11 +75,9 @@ module Fixtury
 
       name = name.to_s
 
-      unless name.include?("/")
-        local_name = "#{self.class.name.underscore}/#{name}"
-        if self.fixtury_dependencies.include?(local_name)
-          return fixtury_store.get(local_name, execution_context: self)
-        end
+      local_alias = "/#{self.class.fixtury_namespace}/#{name}"
+      if self.fixtury_dependencies.include?(local_alias)
+        return fixtury_store.get(local_alias, execution_context: self)
       end
 
       unless self.fixtury_dependencies.include?(name)
