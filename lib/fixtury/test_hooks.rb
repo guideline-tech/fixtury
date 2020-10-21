@@ -11,6 +11,9 @@ module Fixtury
     included do
       class_attribute :fixtury_dependencies
       self.fixtury_dependencies = Set.new
+
+      class_attribute :local_fixtury_dependencies
+      self.local_fixtury_dependencies = Set.new
     end
 
     module ClassMethods
@@ -32,7 +35,7 @@ module Fixtury
 
           names.each do |fixture_name|
             ns.fixture(fixture_name, &definition)
-            self.fixtury_dependencies += ["/#{namespace}/#{fixture_name}"]
+            self.local_fixtury_dependencies += ["/#{namespace}/#{fixture_name}"]
           end
 
         # otherwise, just record the dependency
@@ -76,7 +79,7 @@ module Fixtury
       name = name.to_s
 
       local_alias = "/#{self.class.fixtury_namespace}/#{name}"
-      if self.fixtury_dependencies.include?(local_alias)
+      if self.local_fixtury_dependencies.include?(local_alias)
         return fixtury_store.get(local_alias, execution_context: self)
       end
 
@@ -103,7 +106,7 @@ module Fixtury
 
     # piggybacking activerecord fixture setup for now.
     def setup_fixtures(*args)
-      if fixtury_dependencies.any?
+      if fixtury_dependencies.any? || local_fixtury_dependencies.any?
         setup_fixtury_fixtures
       else
         super
@@ -112,7 +115,7 @@ module Fixtury
 
     # piggybacking activerecord fixture setup for now.
     def teardown_fixtures(*args)
-      if fixtury_dependencies.any?
+      if fixtury_dependencies.any? || local_fixtury_dependencies.any?
         teardown_fixtury_fixtures
       else
         super
@@ -143,7 +146,7 @@ module Fixtury
     end
 
     def load_all_fixtury_fixtures!
-      fixtury_dependencies.each do |name|
+      (fixtury_dependencies | local_fixtury_dependencies).each do |name|
         fixtury(name) unless fixtury_loaded?(name)
       end
     end

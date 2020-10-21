@@ -80,15 +80,25 @@ module Fixtury
 
     def test_dependencies_are_recorded
       assert_equal(
-        %w[global/foo global/bar global/baz /fixtury/test_hooks_test/some_test_class/qux /fixtury/test_hooks_test/some_test_class/bux],
+        %w[global/foo global/bar global/baz],
         SomeTestClass.fixtury_dependencies.to_a
+      )
+
+      assert_equal(
+        %w[/fixtury/test_hooks_test/some_test_class/qux /fixtury/test_hooks_test/some_test_class/bux],
+        SomeTestClass.local_fixtury_dependencies.to_a
       )
     end
 
     def test_local_dependencies_can_have_a_custom_namespace
       assert_equal(
-        %w[global/foo /totally_some_test/foo/bar/baz],
+        %w[global/foo],
         SomeTestClassWithCustomFixturyNamespace.fixtury_dependencies.to_a
+      )
+
+      assert_equal(
+        %w[/totally_some_test/foo/bar/baz],
+        SomeTestClassWithCustomFixturyNamespace.local_fixtury_dependencies.to_a
       )
     end
 
