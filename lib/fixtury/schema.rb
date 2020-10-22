@@ -9,13 +9,14 @@ require "fixtury/errors/schema_frozen_error"
 module Fixtury
   class Schema
 
-    attr_reader :definitions, :children, :name, :parent, :relative_name, :around_fixture_definition
+    attr_reader :definitions, :children, :name, :parent, :relative_name, :around_fixture_definition, :options
 
-    def initialize(parent:, name:)
+    def initialize(parent:, name:, options: {})
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
       @around_fixture_definition = nil
+      @options = options
       @frozen = false
       reset!
     end
@@ -83,19 +84,19 @@ module Fixtury
       out.join("\n")
     end
 
-    def namespace(name, &block)
+    def namespace(name, options = {}, &block)
       ensure_not_frozen!
       ensure_no_conflict!(name: name, definitions: true, namespaces: false)
 
-      child = find_or_create_child_schema(name: name)
+      child = find_or_create_child_schema(name: name, options: options)
       child.instance_eval(&block) if block_given?
       child
     end
 
-    def fixture(name, &block)
+    def fixture(name, options = {}, &block)
       ensure_not_frozen!
       ensure_no_conflict!(name: name, definitions: true, namespaces: true)
-      create_child_definition(name: name, &block)
+      create_child_definition(name: name, options: options, &block)
     end
 
     def enhance(name, &block)
@@ -186,13 +187,13 @@ module Fixtury
       children[name.to_s]
     end
 
-    def find_or_create_child_schema(name:)
+    def find_or_create_child_schema(name:, options:)
       name = name.to_s
       child = find_child_schema(name: name)
       child ||= begin
         children[name] = begin
           child_name = build_child_name(name: name)
-          self.class.new(name: child_name, parent: self)
+          self.class.new(name: child_name, parent: self, options: options)
         end
       end
       child
@@ -202,9 +203,9 @@ module Fixtury
       definitions[name.to_s]
     end
 
-    def create_child_definition(name:, &block)
+    def create_child_definition(name:, options:, &block)
       child_name = build_child_name(name: name)
-      definition = ::Fixtury::Definition.new(name: child_name, schema: self, &block)
+      definition = ::Fixtury::Definition.new(name: child_name, schema: self, options: options, &block)
       definitions[name.to_s] = definition
     end
 

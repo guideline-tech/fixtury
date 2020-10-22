@@ -7,14 +7,17 @@ module Fixtury
 
     attr_reader :name
     attr_reader :schema
+    alias parent schema
+    attr_reader :options
 
     attr_reader :callable
     attr_reader :enhancements
 
-    def initialize(schema: nil, name:, &block)
+    def initialize(schema: nil, name:, options: {}, &block)
       @name = name
       @schema = schema
       @callable = block
+      @options = options
       @enhancements = []
     end
 

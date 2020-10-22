@@ -9,12 +9,17 @@ module Fixtury
       new(name, HOLDER_VALUE)
     end
 
-    attr_reader :name, :value, :created_at
+    def self.create(name, value)
+      new(name, value)
+    end
 
-    def initialize(name, value)
+    attr_reader :name, :value, :created_at, :options
+
+    def initialize(name, value, options = {})
       @name = name
       @value = value
       @created_at = Time.now.to_i
+      @options = options
     end
 
     def holder?
