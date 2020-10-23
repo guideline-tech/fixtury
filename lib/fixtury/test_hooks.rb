@@ -33,9 +33,11 @@ module Fixtury
             ns = ns.namespace(ns_name){}
           end
 
-          names.each do |fixture_name|
+          names.map! do |fixture_name|
             ns.fixture(fixture_name, &definition)
-            self.local_fixtury_dependencies += ["/#{namespace}/#{fixture_name}"]
+            new_name = "/#{namespace}/#{fixture_name}"
+            self.local_fixtury_dependencies += [new_name]
+            new_name
           end
 
         # otherwise, just record the dependency
@@ -43,12 +45,14 @@ module Fixtury
           self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
         end
 
-        accessor_option = opts.key?(:accessor) ? opts[:accessor] : true
+        accessor_option = opts[:as]
+        accessor_option = opts[:accessor] if accessor_option.nil? # old version, backwards compatability
+        accessor_option = accessor_option.nil? ? true : accessor_option
 
         if accessor_option
 
           if accessor_option != true && names.length > 1
-            raise ArgumentError, "A named :accessor option is only available when providing one fixture"
+            raise ArgumentError, "A named :as option is only available when providing one fixture"
           end
 
           names.each do |fixture_name|
@@ -78,12 +82,15 @@ module Fixtury
 
       name = name.to_s
 
-      local_alias = "/#{self.class.fixtury_namespace}/#{name}"
-      if self.local_fixtury_dependencies.include?(local_alias)
-        return fixtury_store.get(local_alias, execution_context: self)
+      # in the case that we're looking for a relative fixture, see if it's registered relative to the test's namespace.
+      unless name.include?("/")
+        local_name = "/#{self.class.fixtury_namespace}/#{name}"
+        if local_fixtury_dependencies.include?(local_name)
+          return fixtury_store.get(local_name, execution_context: self)
+        end
       end
 
-      unless self.fixtury_dependencies.include?(name)
+      unless fixtury_dependencies.include?(name) || local_fixtury_dependencies.include?(name)
         raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
       end
 

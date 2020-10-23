@@ -13,11 +13,11 @@ module Fixtury
       # This is needed because we reset the global fixtures every time.
       # Normally these calls would occur directly on the class
       def self.bootstrap
-        fixtury "global/foo", accessor: false
-        fixtury "global/bar", accessor: "barrr"
+        fixtury "global/foo", as: false
+        fixtury "global/bar", as: "barrr"
         fixtury "global/baz"
 
-        fixtury "qux", accessor: false do |_store|
+        fixtury "qux", as: false do |_store|
           "qux"
         end
 
