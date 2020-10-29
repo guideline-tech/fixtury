@@ -130,7 +130,7 @@ module Fixtury
     end
 
     def setup_fixtury_fixtures
-      return unless use_transactional_fixtures
+      return unless fixtury_use_transactions?
 
       clear_expired_fixtury_fixtures!
       load_all_fixtury_fixtures!
@@ -141,7 +141,7 @@ module Fixtury
     end
 
     def teardown_fixtury_fixtures
-      return unless use_transactional_fixtures
+      return unless fixtury_use_transactions?
 
       fixtury_database_connections.each(&:rollback_transaction)
     end
@@ -156,6 +156,13 @@ module Fixtury
       (fixtury_dependencies | local_fixtury_dependencies).each do |name|
         fixtury(name) unless fixtury_loaded?(name)
       end
+    end
+
+    def fixtury_use_transactions?
+      return use_transactional_tests if respond_to?(:use_transactional_tests)
+      return use_transactional_fixtures if respond_to?(:use_transactional_fixtures)
+
+      true
     end
 
   end
