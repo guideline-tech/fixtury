@@ -18,6 +18,8 @@ module Fixtury
     (LOG_LEVEL_ALL = :all) => 3,
   }.freeze
 
+  DEFAULT_LOG_LEVEL = LOG_LEVEL_INFO
+
   # Shortcut for opening the top level schema.
   def self.define(&block)
     schema.define(&block)
@@ -40,7 +42,7 @@ module Fixtury
   end
 
   def self.log(text = nil, level: LOG_LEVEL_DEBUG, name: nil)
-    desired_level = LOG_LEVELS.fetch(log_level) { LOG_LEVEL_NONE }
+    desired_level = LOG_LEVELS.fetch(log_level) { DEFAULT_LOG_LEVEL }
     return if desired_level == LOG_LEVEL_NONE
 
     message_level = LOG_LEVELS.fetch(level) { LOG_LEVEL_DEBUG }
