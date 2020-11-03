@@ -10,12 +10,6 @@ require "fixtury/reference"
 module Fixtury
   class Store
 
-    LOG_LEVELS = {
-      (LOG_LEVEL_NONE = :none) => 0,
-      (LOG_LEVEL_INFO = :info) => 1,
-      (LOG_LEVEL_DEBUG = :debug) => 2,
-    }.freeze
-
     cattr_accessor :instance
 
     attr_reader :filepath, :references, :ttl, :auto_refresh_expired
@@ -25,15 +19,11 @@ module Fixtury
     def initialize(
       filepath: nil,
       locator: ::Fixtury::Locator.instance,
-      log_level: nil,
       ttl: nil,
       schema: nil,
       auto_refresh_expired: false
     )
       @schema = schema || ::Fixtury.schema
-      @log_level = log_level.nil? ? ENV["FIXTURY_LOG_LEVEL"] : log_level
-      @log_level ||= LOG_LEVEL_NONE
-      @log_level = @log_level.to_s.to_sym
       @locator = locator
       @filepath = filepath
       @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
@@ -59,7 +49,7 @@ module Fixtury
 
       references.delete_if do |name, ref|
         is_expired = ref_invalid?(ref)
-        log(level: LOG_LEVEL_INFO) { "expiring #{name}" } if is_expired
+        log("expiring #{name}", level: LOG_LEVEL_DEBUG) if is_expired
         is_expired
       end
     end
@@ -81,7 +71,7 @@ module Fixtury
       pattern = pattern[0...-1] if glob
       references.delete_if do |key, _value|
         hit = glob ? key.start_with?(pattern) : key == pattern
-        log(level: LOG_LEVEL_INFO) { "clearing #{key}" } if hit
+        log("clearing #{key}", level: LOG_LEVEL_DEBUG) if hit
         hit
       end
       dump_to_file
@@ -100,7 +90,7 @@ module Fixtury
       full_name = dfn.name
       ref = references[full_name]
       result = ref&.real?
-      log(level: LOG_LEVEL_DEBUG) { result ? "hit #{full_name}" : "miss #{full_name}" }
+      log(result ? "hit #{full_name}" : "miss #{full_name}", level: LOG_LEVEL_ALL)
       result
     end
 
@@ -114,7 +104,7 @@ module Fixtury
       end
 
       if ref && auto_refresh_expired && ref_invalid?(ref)
-        log(level: LOG_LEVEL_INFO) { "refreshing #{full_name}" }
+        log("refreshing #{full_name}", level: LOG_LEVEL_DEBUG)
         clear_ref(full_name)
         ref = nil
       end
@@ -122,11 +112,11 @@ module Fixtury
       value = nil
 
       if ref
-        log(level: LOG_LEVEL_DEBUG) { "hit #{full_name}" }
+        log("hit #{full_name}", level: LOG_LEVEL_ALL)
         value = load_ref(ref.value)
         if value.nil?
           clear_ref(full_name)
-          log(level: LOG_LEVEL_DEBUG) { "missing #{full_name}" }
+          log("missing #{full_name}", level: LOG_LEVEL_ALL)
         end
       end
 
@@ -136,7 +126,7 @@ module Fixtury
 
         value = dfn.call(store: self, execution_context: execution_context)
 
-        log(level: LOG_LEVEL_INFO) { "store #{full_name}" }
+        log("store #{full_name}", level: LOG_LEVEL_DEBUG)
 
         ref = dump_ref(full_name, value)
         ref = ::Fixtury::Reference.new(full_name, ref)
@@ -165,14 +155,8 @@ module Fixtury
       !locator.recognize?(ref.value)
     end
 
-    def log(level: LOG_LEVEL_DEBUG, name: "store")
-      desired_level = LOG_LEVELS.fetch(log_level) { LOG_LEVEL_NONE }
-      return if desired_level == LOG_LEVEL_NONE
-
-      message_level = LOG_LEVELS.fetch(level) { LOG_LEVEL_DEBUG }
-      return unless desired_level >= message_level
-
-      puts "[fixtury|#{name}] #{yield}"
+    def log(msg, level:)
+      ::Fixtury.log(msg, level: level, name: "store")
     end
 
   end
