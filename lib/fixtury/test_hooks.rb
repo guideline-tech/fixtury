@@ -153,7 +153,6 @@ module Fixtury
     end
 
     def load_all_fixtury_fixtures!
-      ::Fixtury.log("preloading fixtures", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)
       (fixtury_dependencies | local_fixtury_dependencies).each do |name|
         unless fixtury_loaded?(name)
           ::Fixtury.log("preloading #{name.inspect}", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)
