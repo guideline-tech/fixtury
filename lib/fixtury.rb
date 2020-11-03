@@ -36,7 +36,7 @@ module Fixtury
     return @log_level if @log_level
 
     @log_level = ENV["FIXTURY_LOG_LEVEL"]
-    @log_level ||= LOG_LEVEL_INFO
+    @log_level ||= DEFAULT_LOG_LEVEL
     @log_level = @log_level.to_s.to_sym
     @log_level
   end
