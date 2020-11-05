@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Fixtury
   module Errors
     class SchemaFrozenError < ::StandardError

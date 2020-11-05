@@ -280,5 +280,35 @@ module Fixtury
       assert_equal "FooFoo", dfn.call
     end
 
+    def test_options_are_merged
+      schema.define do
+        namespace "thechild", foo: "foo"
+      end
+
+      schema.define do
+        namespace "thechild", bar: "bar"
+      end
+
+      assert_equal({ foo: "foo", bar: "bar" }, schema.children["thechild"].options)
+    end
+
+    def test_conflicting_options_raise
+      schema.define do
+        namespace "thechild", foo: "foo"
+      end
+
+      # doesn't raise because the value is the same
+      schema.define do
+        namespace "thechild", foo: "foo"
+      end
+
+      # raises because a new value is encountered
+      assert_raises ::Fixtury::Errors::OptionCollisionError do
+        schema.define do
+          namespace "thechild", foo: "bar"
+        end
+      end
+    end
+
   end
 end

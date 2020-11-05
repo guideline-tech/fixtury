@@ -5,20 +5,31 @@ require "fixtury/path"
 require "fixtury/errors/already_defined_error"
 require "fixtury/errors/fixture_not_defined_error"
 require "fixtury/errors/schema_frozen_error"
+require "fixtury/errors/option_collision_error"
 
 module Fixtury
   class Schema
 
     attr_reader :definitions, :children, :name, :parent, :relative_name, :around_fixture_definition, :options
 
-    def initialize(parent:, name:, options: {})
+    def initialize(parent:, name:)
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
       @around_fixture_definition = nil
-      @options = options
+      @options = {}
       @frozen = false
       reset!
+    end
+
+    def merge_options(opts = {})
+      opts.each_pair do |k, v|
+        if options.key?(k) && options[k] != v
+          raise ::Fixtury::Errors::OptionCollisionError.new(name, k, options[k], v)
+        end
+
+        options[k] = v
+      end
     end
 
     def around_fixture(&block)
@@ -109,14 +120,14 @@ module Fixtury
     def merge(other_ns)
       ensure_not_frozen!
       other_ns.definitions.each_pair do |name, dfn|
-        fixture(name, &dfn.callable)
+        fixture(name, dfn.options, &dfn.callable)
         dfn.enhancements.each do |e|
           enhance(name, &e)
         end
       end
 
       other_ns.children.each_pair do |name, other_ns_child|
-        namespace(name) do
+        namespace(name, other_ns_child.options) do
           merge(other_ns_child)
         end
       end
@@ -193,9 +204,10 @@ module Fixtury
       child ||= begin
         children[name] = begin
           child_name = build_child_name(name: name)
-          self.class.new(name: child_name, parent: self, options: options)
+          self.class.new(name: child_name, parent: self)
         end
       end
+      child.merge_options(options)
       child
     end
 
