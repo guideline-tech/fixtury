@@ -41,7 +41,7 @@ module Fixtury
     @log_level
   end
 
-  def self.log(text = nil, level: LOG_LEVEL_DEBUG, name: nil)
+  def self.log(text = nil, level: LOG_LEVEL_DEBUG, name: nil, newline: true)
     desired_level = LOG_LEVELS.fetch(log_level) { DEFAULT_LOG_LEVEL }
     return if desired_level == LOG_LEVEL_NONE
 
@@ -53,7 +53,10 @@ module Fixtury
     msg << "]"
     msg << " #{text}" if text
     msg << " #{yield}" if block_given?
-    puts msg
+    msg << "\n" if newline
+
+    print msg
+    msg
   end
 
 end
