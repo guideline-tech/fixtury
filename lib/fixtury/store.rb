@@ -141,8 +141,12 @@ module Fixtury
       locator.load(ref)
     end
 
-    def dump_ref(_name, value)
-      locator.dump(value)
+    def dump_ref(name, value)
+      begin
+        locator.dump(value)
+      rescue ArgumentError => err
+        raise ArgumentError, "#{err.to_s} for #{name}"
+      end
     end
 
     def clear_ref(name)
