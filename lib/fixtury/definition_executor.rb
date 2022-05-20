@@ -16,6 +16,7 @@ module Fixtury
     def __call
       maybe_set_store_context do
         provide_schema_hooks do
+          ::Fixtury.log("about to run callable: #{definition.callable.inspect}", level: LOG_LEVEL_DEBUG, name: "store")
           run_callable(callable: definition.callable, type: :definition)
           definition.enhancements.each do |e|
             run_callable(callable: e, type: :enhancement)

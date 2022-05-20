@@ -7,6 +7,7 @@ require "fixtury/version"
 require "fixtury/schema"
 require "fixtury/locator"
 require "fixtury/store"
+# require 'debug'
 
 # Top level namespace of the gem
 module Fixtury
@@ -19,6 +20,8 @@ module Fixtury
   }.freeze
 
   DEFAULT_LOG_LEVEL = LOG_LEVEL_INFO
+
+  attr_accessor :log_level
 
   # Shortcut for opening the top level schema.
   def self.define(&block)
@@ -33,20 +36,14 @@ module Fixtury
   end
 
   def self.log_level
-    return @log_level if @log_level
-
-    @log_level = ENV["FIXTURY_LOG_LEVEL"]
-    @log_level ||= DEFAULT_LOG_LEVEL
-    @log_level = @log_level.to_s.to_sym
-    @log_level
+    @log_level ||= set_log_level
   end
 
   def self.log(text = nil, level: LOG_LEVEL_DEBUG, name: nil, newline: true)
-    desired_level = LOG_LEVELS.fetch(log_level) { DEFAULT_LOG_LEVEL }
-    return if desired_level == LOG_LEVEL_NONE
+    return if log_level == LOG_LEVEL_NONE
 
     message_level = LOG_LEVELS.fetch(level) { LOG_LEVEL_DEBUG }
-    return unless desired_level >= message_level
+    return unless LOG_LEVELS[log_level] >= message_level
 
     msg = +"[fixtury"
     msg << "|#{name}" if name
@@ -57,6 +54,14 @@ module Fixtury
 
     print msg
     msg
+  end
+
+  def self.set_log_level
+    return DEFAULT_LOG_LEVEL if ENV["FIXTURY_LOG_LEVEL"].blank?
+
+    env_level = ENV["FIXTURY_LOG_LEVEL"].to_s.to_sym
+
+    LOG_LEVELS.key?(env_level) ? env_level : DEFAULT_LOG_LEVEL
   end
 
 end

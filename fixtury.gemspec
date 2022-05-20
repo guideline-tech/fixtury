@@ -30,6 +30,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "autotest"
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "byebug"
+  spec.add_development_dependency "debug"
   spec.add_development_dependency "globalid"
   spec.add_development_dependency "minitest", "~> 5.0"
   spec.add_development_dependency "minitest-reporters"
