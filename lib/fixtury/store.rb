@@ -155,7 +155,7 @@ module Fixtury
       !locator.recognize?(ref.value)
     end
 
-    def log(msg, level:)
+    def log(msg, level:, name: nil)
       ::Fixtury.log(msg, level: level, name: "store")
     end
 
