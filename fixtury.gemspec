@@ -30,10 +30,10 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "byebug"
   spec.add_development_dependency "globalid"
+  spec.add_development_dependency "activerecord"
   spec.add_development_dependency "m"
-  spec.add_development_dependency "minitest-reporters"
   spec.add_development_dependency "minitest"
   spec.add_development_dependency "mocha"
   spec.add_development_dependency "rake"
-  spec.add_development_dependency "sqlite"
+  spec.add_development_dependency "sqlite3"
 end

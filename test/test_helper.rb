@@ -5,13 +5,12 @@ require "fixtury"
 
 require "byebug"
 require "minitest/autorun"
-require "minitest/reporters"
-
-Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new]
+require "support/db/helpers"
 
 class Test < Minitest::Test
 
   extend ::Minitest::Spec::DSL # for let
+  include ::Support::Db::Helpers
 
   def before_setup
     ::Fixtury.schema.reset!

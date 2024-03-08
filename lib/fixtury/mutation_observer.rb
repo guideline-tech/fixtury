@@ -100,5 +100,7 @@ module Fixtury
 end
 
 ::Fixtury.hooks.around(:execution) do |execution, &block|
-  MutationObserver.observe(execution, &block)
+  ::Fixtury::MutationObserver.observe(execution, &block)
 end
+
+ActiveSupport.on_load(:active_record) { prepend Fixtury::MutationObserver::ActiveRecordHooks }
