@@ -3,33 +3,25 @@
 require "fileutils"
 require "singleton"
 require "yaml"
-require "fixtury/locator"
-require "fixtury/errors/circular_dependency_error"
-require "fixtury/reference"
 
 module Fixtury
   class Store
 
-    cattr_accessor :instance
-
-    attr_reader :filepath, :references, :ttl, :auto_refresh_expired
-    attr_reader :schema, :locator
+    attr_reader :filepath
+    attr_reader :loaded_isolation_keys
+    attr_reader :locator
     attr_reader :log_level
+    attr_reader :references
+    attr_reader :schema
+    attr_reader :ttl
 
-    def initialize(
-      filepath: nil,
-      locator: ::Fixtury::Locator.instance,
-      ttl: nil,
-      schema: nil,
-      auto_refresh_expired: false
-    )
+    def initialize(filepath: nil, locator: nil, ttl: nil, schema: nil)
       @schema = schema || ::Fixtury.schema
-      @locator = locator
+      @locator = locator || ::Fixtury::Locator.new
       @filepath = filepath
-      @references = @filepath && ::File.file?(@filepath) ? ::YAML.load_file(@filepath) : {}
-      @ttl = ttl ? ttl.to_i : ttl
-      @auto_refresh_expired = !!auto_refresh_expired
-      self.class.instance ||= self
+      @references = load_reference_from_file || {}
+      @ttl = ttl&.to_i
+      @loaded_isolation_keys = {}
     end
 
     def dump_to_file
@@ -41,7 +33,14 @@ module Fixtury
         h[full_name] = ref if ref.real?
       end
 
-      ::File.open(filepath, "wb") { |io| io.write(writable.to_yaml) }
+      ::File.binwrite(filepath, writable.to_yaml)
+    end
+
+    def load_reference_from_file
+      return unless filepath
+      return unless File.file?(filepath)
+
+      ::YAML.unsafe_load_file(filepath)
     end
 
     def clear_expired_references!
@@ -55,18 +54,18 @@ module Fixtury
     end
 
     def load_all(schema = self.schema)
-      schema.definitions.each_pair do |_key, dfn|
+      schema.definitions.each_value do |dfn|
         get(dfn.name)
       end
 
-      schema.children.each_pair do |_key, ns|
+      schema.children.each_value do |ns|
         load_all(ns)
       end
     end
 
     def clear_cache!(pattern: nil)
       pattern ||= "*"
-      pattern = "/" + pattern unless pattern.start_with?("/")
+      pattern = "/#{pattern}" unless pattern.start_with?("/")
       glob = pattern.end_with?("*")
       pattern = pattern[0...-1] if glob
       references.delete_if do |key, _value|
@@ -94,18 +93,61 @@ module Fixtury
       result
     end
 
-    def get(name, execution_context: nil)
+    def loaded_or_loading?(name)
       dfn = schema.get_definition!(name)
       full_name = dfn.name
-      ref = references[full_name]
+      !!references[full_name]
+    end
 
-      if ref&.holder?
-        raise ::Fixtury::Errors::CircularDependencyError, full_name
+    def maybe_load_isolation_dependencies(definition)
+      isolation_key = definition.options[:isolation_key]
+
+      return if isolation_key.nil?
+      return if isolation_key == definition.name
+      return if loaded_isolation_keys[isolation_key]
+
+      load_isolation_dependencies(isolation_key, schema)
+    end
+
+    def load_isolation_dependencies(isolation_key, target_schema)
+      loaded_isolation_keys[isolation_key] = true
+      target_schema.definitions.each_value do |dfn|
+        next unless dfn.options[:isolation_key] == isolation_key
+        next if loaded_or_loading?(dfn.name)
+
+        get(dfn.name)
       end
 
-      if ref && auto_refresh_expired && ref_invalid?(ref)
+      target_schema.children.each_value do |ns|
+        load_isolation_dependencies(isolation_key, ns)
+      end
+    end
+
+    # Fetch a fixture by name. This will load the fixture if it has not been loaded yet.
+    # If a definition contains an isolation key, all fixtures with the same isolation key will be loaded.
+    def get(name)
+      log("getting #{name}", level: LOG_LEVEL_DEBUG)
+
+      # Find the definition.
+      dfn = schema.get_definition!(name)
+      full_name = dfn.name
+
+      # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
+      maybe_load_isolation_dependencies(dfn)
+
+      # See if we already hold a reference to the fixture.
+      ref = references[full_name]
+
+      # If the reference is a placeholder, we have a circular dependency.
+      if ref&.holder?
+        raise Errors::CircularDependencyError, full_name
+      end
+
+      # If the reference is stale, we should refresh it.
+      # We do so by clearing it from the store and setting the reference to nil.
+      if ref && reference_stale?(ref)
         log("refreshing #{full_name}", level: LOG_LEVEL_DEBUG)
-        clear_ref(full_name)
+        clear_reference(full_name)
         ref = nil
       end
 
@@ -113,9 +155,10 @@ module Fixtury
 
       if ref
         log("hit #{full_name}", level: LOG_LEVEL_ALL)
-        value = load_ref(ref.value)
+        value = locator.load(ref.locator_key)
         if value.nil?
-          clear_ref(full_name)
+          clear_reference(full_name)
+          ref = nil
           log("missing #{full_name}", level: LOG_LEVEL_ALL)
         end
       end
@@ -124,40 +167,49 @@ module Fixtury
         # set the references to a holder value so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
         references[full_name] = ::Fixtury::Reference.holder(full_name)
 
-        value = dfn.call(store: self, execution_context: execution_context)
+        begin
+          value = dfn.call(store: self)
+        rescue StandardError
+          clear_reference(full_name)
+          raise
+        end
 
         log("store #{full_name}", level: LOG_LEVEL_DEBUG)
 
-        ref = dump_ref(full_name, value)
-        ref = ::Fixtury::Reference.new(full_name, ref)
-        references[full_name] = ref
+        locator_key = locator.dump(full_name, value)
+        references[full_name] = ::Fixtury::Reference.new(full_name, locator_key)
       end
 
       value
     end
     alias [] get
 
-    def load_ref(ref)
-      locator.load(ref)
-    end
-
-    def dump_ref(_name, value)
-      locator.dump(value)
-    end
-
-    def clear_ref(name)
+    def clear_reference(name)
       references.delete(name)
     end
 
-    def ref_invalid?(ref)
+    def reference_stale?(ref)
       return true if ttl && ref.created_at < (Time.now.to_i - ttl)
 
-      !locator.recognize?(ref.value)
+      !locator.recognize?(ref.locator_key)
     end
 
     def log(msg, level:)
       ::Fixtury.log(msg, level: level, name: "store")
     end
+
+    def determine_isolation_key(definition)
+      value = definition.options[:isolate]
+      case value
+      when true
+        definition.name
+      when String, Symbol
+        value.to_s
+      else
+        nil
+      end
+    end
+
 
   end
 end

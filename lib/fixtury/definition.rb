@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "fixtury/definition_executor"
-
 module Fixtury
   class Definition
 
@@ -11,34 +9,23 @@ module Fixtury
     attr_reader :options
 
     attr_reader :callable
-    attr_reader :enhancements
 
-    def initialize(schema: nil, name:, options: {}, &block)
+    def initialize(name:, schema: nil, options: {}, &block)
       @name = name
       @schema = schema
       @callable = block
       @options = options
-      @enhancements = []
-    end
-
-    def enhance(&block)
-      @enhancements << block
-    end
-
-    def enhanced?
-      @enhancements.any?
     end
 
     def info
       {
         name: name,
         loc: location_from_callable(callable),
-        enhancements: enhancements.map { |e| location_from_callable(e) },
       }
     end
 
-    def call(store: nil, execution_context: nil)
-      executor = ::Fixtury::DefinitionExecutor.new(store: store, definition: self, execution_context: execution_context)
+    def call(store: nil)
+      executor = ::Fixtury::DefinitionExecutor.new(store: store, definition: self)
       executor.__call
     end
 

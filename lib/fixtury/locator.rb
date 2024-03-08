@@ -1,48 +1,38 @@
 # frozen_string_literal: true
 
+require "fixtury/locator_backend/memory"
+
 module Fixtury
+  # Locator is a class that is responsible for recognizing, loading, and dumping references.
+  # It is a simple wrapper around a backend that is responsible for the actual work.
+  # The backend is expected to implement the following methods: recognized_reference?, recognized_value?, load_recognized_reference, dump_recognized_value.
   class Locator
-
-    class << self
-
-      attr_accessor :instance
-
-      def instance
-        @instance ||= begin
-          require "fixtury/locator_backend/memory"
-          ::Fixtury::Locator.new(
-            backend: ::Fixtury::LocatorBackend::Memory.new
-          )
-        end
-      end
-
-    end
 
     attr_reader :backend
 
-    def initialize(backend:)
+    def initialize(backend: ::Fixtury::LocatorBackend::Memory.new)
       @backend = backend
     end
 
-    def recognize?(ref)
-      raise ArgumentError, "Unable to recognize a nil ref" if ref.nil?
+    def recognize?(locator_key)
+      raise ArgumentError, "Unable to recognize a nil locator value" if locator_key.nil?
 
-      backend.recognized_reference?(ref)
+      backend.recognized_reference?(locator_key)
     end
 
-    def load(ref)
-      raise ArgumentError, "Unable to load a nil ref" if ref.nil?
+    def load(locator_key)
+      raise ArgumentError, "Unable to load a nil locator value" if locator_key.nil?
 
-      backend.load(ref)
+      backend.load(locator_key)
     end
 
-    def dump(value)
-      raise ArgumentError, "Unable to dump a nil value" if value.nil?
+    def dump(name, stored_value)
+      raise ArgumentError, "Unable to dump a nil value for ref: #{name}" if stored_value.nil?
 
-      ref = backend.dump(value)
-      raise ArgumentError, "The value resulted in a nil ref" if ref.nil?
+      locator_key = backend.dump(stored_value)
+      raise ArgumentError, "Dump resulted in a nil locator value: #{name}" if locator_key.nil?
 
-      ref
+      locator_key
     end
 
   end

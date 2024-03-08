@@ -1,22 +1,14 @@
 # frozen_string_literal: true
 
-require "fixtury/definition"
-require "fixtury/path"
-require "fixtury/errors/already_defined_error"
-require "fixtury/errors/fixture_not_defined_error"
-require "fixtury/errors/schema_frozen_error"
-require "fixtury/errors/option_collision_error"
-
 module Fixtury
   class Schema
 
-    attr_reader :definitions, :children, :name, :parent, :relative_name, :around_fixture_definition, :options
+    attr_reader :definitions, :children, :name, :parent, :relative_name, :options
 
     def initialize(parent:, name:)
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
-      @around_fixture_definition = nil
       @options = {}
       @frozen = false
       reset!
@@ -25,31 +17,24 @@ module Fixtury
     def merge_options(opts = {})
       opts.each_pair do |k, v|
         if options.key?(k) && options[k] != v
-          raise ::Fixtury::Errors::OptionCollisionError.new(name, k, options[k], v)
+          raise Errors::OptionCollisionError.new(name, k, options[k], v)
         end
 
         options[k] = v
       end
     end
 
-    def around_fixture(&block)
-      @around_fixture_definition = block
-    end
+    def inheritable_definition_options
+      out = {}
 
-    def around_fixture_hook(executor, &definition)
-      maybe_invoke_parent_around_fixture_hook(executor) do
-        if around_fixture_definition.nil?
-          yield
-        else
-          around_fixture_definition.call(executor, definition)
-        end
+      case options[:isolate]
+      when true
+        out[:isolation_key] = name
+      when String, Symbol
+        out[:isolation_key] = options[:isolate].to_s
       end
-    end
 
-    def maybe_invoke_parent_around_fixture_hook(executor, &block)
-      return yield unless parent
-
-      parent.around_fixture_hook(executor, &block)
+      out
     end
 
     def reset!
@@ -110,36 +95,9 @@ module Fixtury
       create_child_definition(name: name, options: options, &block)
     end
 
-    def enhance(name, &block)
-      ensure_not_frozen!
-      definition = get_definition!(name)
-      definition.enhance(&block)
-      definition
-    end
-
-    def merge(other_ns)
-      ensure_not_frozen!
-      other_ns.definitions.each_pair do |name, dfn|
-        fixture(name, dfn.options, &dfn.callable)
-        dfn.enhancements.each do |e|
-          enhance(name, &e)
-        end
-      end
-
-      other_ns.children.each_pair do |name, other_ns_child|
-        namespace(name, other_ns_child.options) do
-          merge(other_ns_child)
-        end
-      end
-
-      around_fixture(&other_ns.around_fixture_definition) if other_ns.around_fixture_definition
-
-      self
-    end
-
     def get_definition!(name)
       dfn = get_definition(name)
-      raise ::Fixtury::Errors::FixtureNotDefinedError, name unless dfn
+      raise Errors::FixtureNotDefinedError, name unless dfn
 
       dfn
     end
@@ -217,6 +175,7 @@ module Fixtury
 
     def create_child_definition(name:, options:, &block)
       child_name = build_child_name(name: name)
+      options = inheritable_definition_options.merge(options)
       definition = ::Fixtury::Definition.new(name: child_name, schema: self, options: options, &block)
       definitions[name.to_s] = definition
     end
@@ -233,19 +192,19 @@ module Fixtury
     def ensure_no_conflict!(name:, namespaces:, definitions:)
       if definitions
         definition = find_child_definition(name: name)
-        raise ::Fixtury::Errors::AlreadyDefinedError, definition.name if definition
+        raise Errors::AlreadyDefinedError, definition.name if definition
       end
 
       if namespaces
         ns = find_child_schema(name: name)
-        raise ::Fixtury::Errors::AlreadyDefinedError, ns.name if ns
+        raise Errors::AlreadyDefinedError, ns.name if ns
       end
     end
 
     def ensure_not_frozen!
       return unless frozen?
 
-      raise ::Fixtury::Errors::SchemaFrozenError
+      raise Errors::SchemaFrozenError
     end
 
   end

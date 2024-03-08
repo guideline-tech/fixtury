@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "fixtury/store"
 
 module Fixtury
   class IntegrationTest < ::Test
@@ -76,7 +75,7 @@ module Fixtury
     end
 
     def test_relatives_miss_if_they_dont_exist
-      assert_raises ::Fixtury::Errors::FixtureNotDefinedError do
+      assert_raises Errors::FixtureNotDefinedError do
         store["countries/towns/unknown_town"]
       end
     end

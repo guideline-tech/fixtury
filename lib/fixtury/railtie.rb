@@ -7,5 +7,11 @@ module Fixtury
       load "fixtury/tasks.rake"
     end
 
+    initializer "fixtury.activerecord_hooks" do
+      require "fixtury/mutation_observer"
+
+      ActiveSupport.on_load(:active_record) { prepend ::Fixtury::MutationObserver::ActiveRecordHooks }
+    end
+
   end
 end

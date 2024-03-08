@@ -3,23 +3,18 @@
 module Fixtury
   class DefinitionExecutor
 
-    attr_reader :value, :execution_type, :definition, :store, :execution_context
+    attr_reader :value, :definition, :store
 
-    def initialize(store: nil, execution_context: nil, definition:)
+    def initialize(store: nil, definition:)
       @store = store
       @definition = definition
-      @execution_context = execution_context
-      @execution_type = nil
       @value = nil
     end
 
     def __call
       maybe_set_store_context do
-        provide_schema_hooks do
-          run_callable(callable: definition.callable, type: :definition)
-          definition.enhancements.each do |e|
-            run_callable(callable: e, type: :enhancement)
-          end
+        ::Fixtury.hooks.call(:execution, self) do
+          run_callable(callable: definition.callable)
         end
       end
 
@@ -29,32 +24,22 @@ module Fixtury
     def get(name)
       raise ArgumentError, "A store is required for #{definition.name}" unless store
 
-      store.get(name, execution_context: execution_context)
+      store.get(name)
     end
     alias [] get
 
-    def method_missing(method_name, *args, &block)
-      return super unless execution_context
-
-      execution_context.send(method_name, *args, &block)
-    end
-
-    def respond_to_missing?(method_name)
-      return super unless execution_context
-
-      execution_context.respond_to?(method_name, true)
-    end
-
     private
 
-    def run_callable(callable:, type:)
-      @execution_type = type
-
+    def run_callable(callable:)
       @value = if callable.arity.positive?
         instance_exec(self, &callable)
       else
         instance_eval(&callable)
       end
+    rescue Errors::Base
+      raise
+    rescue => e
+      raise Errors::DefinitionExecutionError, [@definition.name, e], e.backtrace
     end
 
     def maybe_set_store_context
@@ -62,15 +47,6 @@ module Fixtury
 
       store.with_relative_schema(definition.schema) do
         yield
-      end
-    end
-
-    def provide_schema_hooks
-      return yield unless definition.schema
-
-      @value = definition.schema.around_fixture_hook(self) do
-        yield
-        value
       end
     end
 

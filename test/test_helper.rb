@@ -11,15 +11,16 @@ Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new]
 
 class Test < Minitest::Test
 
-  extend ::MiniTest::Spec::DSL # for let
+  extend ::Minitest::Spec::DSL # for let
 
   def before_setup
     ::Fixtury.schema.reset!
+    ::Fixtury.store = ::Fixtury::Store.new
     super
   end
 
 end
 
-::MiniTest::Runnable.runnables.delete Test
+::Minitest::Runnable.runnables.delete Test
 
 require "mocha/minitest"

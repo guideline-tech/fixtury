@@ -35,11 +35,11 @@ module Fixtury
 
       loc = ::Fixtury::Locator.new(backend: backend)
       assert_equal "foo_value", loc.load("foo")
-      assert_equal "bar_ref", loc.dump("bar")
+      assert_equal "bar_ref", loc.dump("name", "bar")
     end
 
     def test_it_provides_a_default_locator
-      loc = ::Fixtury::Locator.instance
+      loc = ::Fixtury::Locator.new
       refute_nil loc
 
       assert_equal true, Fixtury::LocatorBackend::Memory === loc.backend

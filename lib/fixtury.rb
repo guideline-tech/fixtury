@@ -1,14 +1,25 @@
 # frozen_string_literal: true
 
 require "active_support/concern"
+require "active_support/core_ext/array/extract_options"
 require "active_support/core_ext/module/attribute_accessors"
 require "active_support/core_ext/module/delegation"
+
 require "fixtury/version"
-require "fixtury/schema"
+
+require "fixtury/definition_executor"
+require "fixtury/definition"
+require "fixtury/errors"
+require "fixtury/hooks"
 require "fixtury/locator"
+require "fixtury/path"
+require "fixtury/reference"
+require "fixtury/schema"
 require "fixtury/store"
 
-# Top level namespace of the gem
+# Top level namespace of the gem. The accessors provided on the Fixtury namespace are meant to be shared
+# across the entire application. The Fixtury::Schema instance is the primary interface for defining and
+# accessing fixtures and can be accessed via Fixtury.schema.
 module Fixtury
 
   LOG_LEVELS = {
@@ -26,10 +37,24 @@ module Fixtury
     schema
   end
 
+  # Global hooks accessor. Fixtury will call these hooks at various points in the lifecycle of a fixture or setup.
+  def self.hooks
+    @hooks ||= ::Fixtury::Hooks.new
+  end
+
   # The default top level schema. Fixtury::Schema instances can be completely self-contained but most
   # usage would be through this shared definition.
   def self.schema
     @schema ||= ::Fixtury::Schema.new(parent: nil, name: "")
+  end
+
+  # Default store for fixtures. This is a shared store that can be used across the application.
+  def self.store
+    @store ||= ::Fixtury::Store.new(schema: schema)
+  end
+
+  def self.store=(store)
+    @store = store
   end
 
   def self.log_level

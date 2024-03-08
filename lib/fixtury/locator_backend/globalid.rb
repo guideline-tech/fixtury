@@ -11,20 +11,20 @@ module Fixtury
 
       MATCHER = %r{^gid://}.freeze
 
-      def recognized_reference?(ref)
-        ref.is_a?(String) && MATCHER.match?(ref)
+      def recognized_reference?(locator_value)
+        locator_value.is_a?(String) && MATCHER.match?(locator_value)
       end
 
-      def recognized_value?(val)
-        val.respond_to?(:to_global_id)
+      def recognized_value?(stored_value)
+        stored_value.respond_to?(:to_global_id)
       end
 
-      def load_recognized_reference(ref)
-        ::GlobalID::Locator.locate ref
+      def load_recognized_reference(locator_value)
+        ::GlobalID::Locator.locate locator_value
       end
 
-      def dump_recognized_value(value)
-        value.to_global_id.to_s
+      def dump_recognized_value(stored_value)
+        stored_value.to_global_id.to_s
       end
 
     end

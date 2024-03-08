@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "fixtury/store"
 require "active_support/core_ext/class/attribute"
 
 module Fixtury
@@ -11,39 +10,14 @@ module Fixtury
     included do
       class_attribute :fixtury_dependencies
       self.fixtury_dependencies = Set.new
-
-      class_attribute :local_fixtury_dependencies
-      self.local_fixtury_dependencies = Set.new
     end
 
     module ClassMethods
 
-      def fixtury(*names, &definition)
-        opts = names.extract_options!
-
-        # define fixtures if blocks are given
-        if block_given?
-          raise ArgumentError, "A fixture cannot be defined in an anonymous class" if name.nil?
-
-          namespace = fixtury_namespace
-
-          ns = ::Fixtury.schema
-
-          namespace.split("/").each do |ns_name|
-            ns = ns.namespace(ns_name){}
-          end
-
-          names.map! do |fixture_name|
-            ns.fixture(fixture_name, &definition)
-            new_name = "/#{namespace}/#{fixture_name}"
-            self.local_fixtury_dependencies += [new_name]
-            new_name
-          end
-
-        # otherwise, just record the dependency
-        else
-          self.fixtury_dependencies += names.flatten.compact.map(&:to_s)
-        end
+      def fixtury(*names, **opts)
+        self.fixtury_dependencies += names.flatten.map do |name|
+          name.start_with?("/") ? name : "/#{name}"
+        end.compact.map(&:to_s)
 
         accessor_option = opts[:as]
         accessor_option = opts[:accessor] if accessor_option.nil? # old version, backwards compatability
@@ -71,34 +45,23 @@ module Fixtury
         end
       end
 
-      def fixtury_namespace
-        name.underscore
-      end
-
     end
 
     def fixtury(name)
       return nil unless fixtury_store
 
       name = name.to_s
+      name = "/#{name}" unless name.start_with?("/")
 
-      # in the case that we're looking for a relative fixture, see if it's registered relative to the test's namespace.
-      unless name.include?("/")
-        local_name = "/#{self.class.fixtury_namespace}/#{name}"
-        if local_fixtury_dependencies.include?(local_name)
-          return fixtury_store.get(local_name, execution_context: self)
-        end
+      unless fixtury_dependencies.include?(name)
+        raise Errors::UnknownFixturyDependency, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
       end
 
-      unless fixtury_dependencies.include?(name) || local_fixtury_dependencies.include?(name)
-        raise ArgumentError, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
-      end
-
-      fixtury_store.get(name, execution_context: self)
+      fixtury_store.get(name)
     end
 
     def fixtury_store
-      ::Fixtury::Store.instance
+      ::Fixtury.store
     end
 
     def fixtury_loaded?(name)
@@ -113,7 +76,7 @@ module Fixtury
 
     # piggybacking activerecord fixture setup for now.
     def setup_fixtures(*args)
-      if fixtury_dependencies.any? || local_fixtury_dependencies.any?
+      if fixtury_dependencies.any?
         setup_fixtury_fixtures
       else
         super
@@ -122,7 +85,7 @@ module Fixtury
 
     # piggybacking activerecord fixture setup for now.
     def teardown_fixtures(*args)
-      if fixtury_dependencies.any? || local_fixtury_dependencies.any?
+      if fixtury_dependencies.any?
         teardown_fixtury_fixtures
       else
         super
@@ -143,7 +106,9 @@ module Fixtury
     def teardown_fixtury_fixtures
       return unless fixtury_use_transactions?
 
-      fixtury_database_connections.each(&:rollback_transaction)
+      fixtury_database_connections.each do |conn|
+        conn.rollback_transaction if conn.open_transactions.positive?
+      end
     end
 
     def clear_expired_fixtury_fixtures!
@@ -153,7 +118,7 @@ module Fixtury
     end
 
     def load_all_fixtury_fixtures!
-      (fixtury_dependencies | local_fixtury_dependencies).each do |name|
+      fixtury_dependencies.each do |name|
         unless fixtury_loaded?(name)
           ::Fixtury.log("preloading #{name.inspect}", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)
           fixtury(name)

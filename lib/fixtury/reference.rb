@@ -3,27 +3,23 @@
 module Fixtury
   class Reference
 
-    HOLDER_VALUE = "__BUILDING_FIXTURE__"
+    HOLDER_KEY = "__BUILDING_FIXTURE__"
 
     def self.holder(name)
-      new(name, HOLDER_VALUE)
+      new(name, HOLDER_KEY)
     end
 
-    def self.create(name, value)
-      new(name, value)
-    end
+    attr_reader :name, :locator_key, :created_at, :options
 
-    attr_reader :name, :value, :created_at, :options
-
-    def initialize(name, value, options = {})
+    def initialize(name, locator_key, options = {})
       @name = name
-      @value = value
+      @locator_key = locator_key
       @created_at = Time.now.to_i
       @options = options
     end
 
     def holder?
-      value == HOLDER_VALUE
+      locator_key == HOLDER_KEY
     end
 
     def real?
