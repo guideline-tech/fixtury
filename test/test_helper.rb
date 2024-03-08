@@ -13,9 +13,13 @@ class Test < Minitest::Test
   include ::Support::Db::Helpers
 
   def before_setup
-    ::Fixtury.schema.reset!
+    ::Fixtury.schema = ::Fixtury::Schema.new
     ::Fixtury.store = ::Fixtury::Store.new
     super
+  end
+
+  def load_default_fixtures
+    load "support/fixtures.rb"
   end
 
 end

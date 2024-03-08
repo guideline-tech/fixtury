@@ -4,6 +4,7 @@ require "active_support/concern"
 require "active_support/core_ext/array/extract_options"
 require "active_support/core_ext/module/attribute_accessors"
 require "active_support/core_ext/module/delegation"
+require "active_support/core_ext/object/acts_like"
 
 require "fixtury/version"
 
@@ -45,7 +46,11 @@ module Fixtury
   # The default top level schema. Fixtury::Schema instances can be completely self-contained but most
   # usage would be through this shared definition.
   def self.schema
-    @schema ||= ::Fixtury::Schema.new(parent: nil, name: "")
+    @schema ||= ::Fixtury::Schema.new
+  end
+
+  def self.schema=(schema)
+    @schema = schema
   end
 
   # Default store for fixtures. This is a shared store that can be used across the application.

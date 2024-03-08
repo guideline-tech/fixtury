@@ -46,7 +46,7 @@ module Fixtury
     def test_a_ttl_store_does_not_return_expired_refs
       ttl = 10
       ttl_store = ::Fixtury::Store.new(schema: schema, ttl: ttl)
-      dfn = schema.get_definition!("foo")
+      dfn = schema.get!("foo")
       dfn.expects(:call).twice.returns("baz")
 
       t = Time.now
@@ -85,7 +85,7 @@ module Fixtury
     def test_store_reloads_value_if_locator_cannot_find
       store = ::Fixtury::Store.new(schema: schema)
 
-      defn = schema.get_definition!("foo")
+      defn = schema.get!("foo")
       defn.expects(:call).twice.returns("baz")
 
       assert_equal "baz", store["foo"]

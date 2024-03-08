@@ -14,12 +14,6 @@ module Fixtury
       @segments = @full_path.split("/")
     end
 
-    def top_level_namespace
-      return "" if @segments.size == 1
-
-      @segments.first
-    end
-
     def relative?
       @path.start_with?(".")
     end
@@ -28,6 +22,7 @@ module Fixtury
       @possible_absolute_paths ||= begin
         out = [@full_path]
         out << @path unless relative?
+        out.uniq!
         out
       end
     end

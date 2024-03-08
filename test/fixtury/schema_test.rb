@@ -20,8 +20,8 @@ module Fixtury
         end
       end
 
-      foo_def = schema.get_definition!(:foo)
-      bar_def = schema.get_definition!(:bar)
+      foo_def = schema.get!(:foo)
+      bar_def = schema.get!(:bar)
 
       assert_equal "foo", foo_def.call
       assert_equal "bar", bar_def.call
@@ -36,7 +36,7 @@ module Fixtury
         end
       end
 
-      barbaz_def = schema.get_definition!("bar/baz")
+      barbaz_def = schema.get!("bar/baz")
 
       assert_equal "barbaz", barbaz_def.call
     end
@@ -56,8 +56,8 @@ module Fixtury
         end
       end
 
-      barbaz_def = schema.get_definition!("bar/baz")
-      barqux_def = schema.get_definition!("bar/qux")
+      barbaz_def = schema.get!("bar/baz")
+      barqux_def = schema.get!("bar/qux")
 
       assert_equal "barbaz", barbaz_def.call
       assert_equal "barqux", barqux_def.call
@@ -74,7 +74,7 @@ module Fixtury
         end
       end
 
-      foobarbaz_def = schema.get_definition!("foo/bar/baz")
+      foobarbaz_def = schema.get!("foo/bar/baz")
       assert_equal "foobarbaz", foobarbaz_def.call
     end
 
@@ -152,29 +152,11 @@ module Fixtury
         end
       end
 
-      foo_def = schema.get_definition!("foo")
-      barfoo_def = schema.get_definition!("bar/foo")
+      foo_def = schema.get!("foo")
+      barfoo_def = schema.get!("bar/foo")
 
       assert_equal "foo", foo_def.call
       assert_equal "bar/foo", barfoo_def.call
-    end
-
-    def test_schema_cannot_be_modified_once_frozen
-      schema.define do
-        fixture "foo" do
-          "foo"
-        end
-      end
-
-      schema.freeze!
-
-      assert_raises Errors::SchemaFrozenError do
-        schema.define{}
-      end
-
-      assert_raises Errors::SchemaFrozenError do
-        schema.fixture("bar"){}
-      end
     end
 
     def test_options_are_merged

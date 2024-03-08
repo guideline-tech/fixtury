@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "active_support/lazy_load_hooks"
+
 module Fixtury
   # The mutation observer class is responsible for tracking the isolation level of resources as they are created and updated.
   # If a resource is created in one isolation level, but updated in another, the mutation observer will raise an error.
@@ -53,7 +55,7 @@ module Fixtury
       def current_isolation_key
         return nil unless current_execution
 
-        current_execution.definition.options.fetch(:isolation_key, nil)
+        current_execution.definition.options.fetch(:isolate, nil)
       end
 
       # This is to ensure that ownership is represented by a base_class implementation rather than a subclass.

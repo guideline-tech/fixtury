@@ -48,14 +48,6 @@ module Fixtury
 
     end
 
-    class SchemaFrozenError < Base
-
-      def initialize
-        super("Schema is frozen. New namespaces and definitions are not allowed.")
-      end
-
-    end
-
     class UnrecognizableLocatorError < Base
 
       def initialize(action, thing)

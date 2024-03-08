@@ -5,49 +5,18 @@ module Fixtury
 
     attr_reader :definitions, :children, :name, :parent, :relative_name, :options
 
-    def initialize(parent:, name:)
+    def initialize(parent: nil, name: "", **options)
       @name = name
       @parent = parent
       @relative_name = @name.split("/").last
-      @options = {}
-      @frozen = false
-      reset!
-    end
-
-    def merge_options(opts = {})
-      opts.each_pair do |k, v|
-        if options.key?(k) && options[k] != v
-          raise Errors::OptionCollisionError.new(name, k, options[k], v)
-        end
-
-        options[k] = v
-      end
-    end
-
-    def inheritable_definition_options
-      out = {}
-
-      case options[:isolate]
-      when true
-        out[:isolation_key] = name
-      when String, Symbol
-        out[:isolation_key] = options[:isolate].to_s
-      end
-
-      out
-    end
-
-    def reset!
       @children = {}
       @definitions = {}
+      @options = {}
+      apply_options!(options)
     end
 
-    def freeze!
-      @frozen = true
-    end
-
-    def frozen?
-      !!@frozen
+    def acts_like_fixtury_schema?
+      true
     end
 
     def top_level_schema
@@ -59,7 +28,6 @@ module Fixtury
     end
 
     def define(&block)
-      ensure_not_frozen!
       instance_eval(&block)
       self
     end
@@ -80,131 +48,108 @@ module Fixtury
       out.join("\n")
     end
 
-    def namespace(name, options = {}, &block)
-      ensure_not_frozen!
-      ensure_no_conflict!(name: name, definitions: true, namespaces: false)
-
-      child = find_or_create_child_schema(name: name, options: options)
+    def namespace(relative_name, **options, &block)
+      child = find_or_create_child_schema!(relative_name: relative_name, options: options)
       child.instance_eval(&block) if block_given?
       child
     end
 
-    def fixture(name, options = {}, &block)
-      ensure_not_frozen!
-      ensure_no_conflict!(name: name, definitions: true, namespaces: true)
-      create_child_definition(name: name, options: options, &block)
+    def fixture(relative_name, **options, &block)
+      create_child_definition!(relative_name: relative_name, options: options, &block)
     end
 
-    def get_definition!(name)
-      dfn = get_definition(name)
-      raise Errors::FixtureNotDefinedError, name unless dfn
+    def get!(name)
+      thing = get(name)
+      raise Errors::FixtureNotDefinedError, name unless thing
 
-      dfn
+      thing
     end
 
-    def get_definition(name)
-      path = ::Fixtury::Path.new(namespace: self.name, path: name)
-      top_level = top_level_schema
+    def get(name)
+      raise ArgumentError, "`name` must be provided" if name.nil?
 
-      dfn = nil
-      path.possible_absolute_paths.each do |abs_path|
-        *namespaces, definition_name = abs_path.split("/")
+      path = Fixtury::Path.new(namespace: self.name, path: name)
+      path.possible_absolute_paths.each do |path|
+        ns = top_level_schema
+        segments = path.split("/")
+        segments.reject!(&:blank?)
+        segments.shift if segments.first == ns.name
+        *namespaces, target_name = segments
 
-        namespaces.shift if namespaces.first == top_level.name
-        target = top_level
-
-        namespaces.each do |ns|
-          next if ns.empty?
-
-          target = target.children[ns]
-          break unless target
+        namespaces.each do |segment|
+          ns = ns.children[segment]
+          break unless ns
         end
 
-        dfn = target.definitions[definition_name] if target
-        return dfn if dfn
+        next unless ns
+
+        return ns.definitions[target_name] if ns.definitions.key?(target_name)
+        return ns.children[target_name] if ns.children.key?(target_name)
       end
 
       nil
     end
+    alias [] get
 
-    def get_namespace(name)
-      path = ::Fixtury::Path.new(namespace: self.name, path: name)
-      top_level = top_level_schema
+    def apply_options!(opts = {})
+      opts = opts.dup
+      isolate = opts.delete(:isolate)
+      isolate = name if isolate == true
+      opts[:isolate] = isolate.to_s if isolate
 
-      path.possible_absolute_paths.each do |abs_path|
-        *namespaces, _definition_name = abs_path.split("/")
-
-        namespaces.shift if namespaces.first == top_level.name
-        target = top_level
-
-        namespaces.each do |ns|
-          next if ns.empty?
-
-          target = target.children[ns]
-          break unless target
+      opts.each do |key, value|
+        if options.key?(key) && options[key] != value
+          raise Errors::OptionCollisionError.new(name, key, options[key], value)
         end
 
-        return target if target
+        options[key] = value
       end
-
-      nil
     end
 
     protected
 
-    def find_child_schema(name:)
-      children[name.to_s]
+    def cascading_options
+      out = {}
+      out[:isolate] = options[:isolate] if options[:isolate]
+      out
     end
+    alias cascading_definition_options cascading_options
+    alias cascading_namespace_options cascading_options
 
-    def find_or_create_child_schema(name:, options:)
-      name = name.to_s
-      child = find_child_schema(name: name)
-      child ||= begin
-        children[name] = begin
-          child_name = build_child_name(name: name)
-          self.class.new(name: child_name, parent: self)
-        end
+    def find_or_create_child_schema!(relative_name:, options:)
+      child_name = build_child_name(relative_name: relative_name)
+      child = get(child_name)
+
+      if child && !child.acts_like?(:fixtury_schema)
+        raise Errors::AlreadyDefinedError, child.name
       end
-      child.merge_options(options)
-      child
+
+      child ||= self.class.new(name: child_name, parent: self)
+      child.apply_options!(options.merge(cascading_namespace_options))
+      children[relative_name.to_s] = child
     end
 
-    def find_child_definition(name:)
-      definitions[name.to_s]
+    def create_child_definition!(relative_name:, options:, &block)
+      child_name = build_child_name(relative_name: relative_name)
+      child = get(child_name)
+      raise Errors::AlreadyDefinedError, child.name if child
+
+      definition = ::Fixtury::Definition.new(
+        name: child_name,
+        schema: self,
+        options: options.merge(cascading_definition_options),
+        &block
+      )
+      definitions[relative_name.to_s] = definition
     end
 
-    def create_child_definition(name:, options:, &block)
-      child_name = build_child_name(name: name)
-      options = inheritable_definition_options.merge(options)
-      definition = ::Fixtury::Definition.new(name: child_name, schema: self, options: options, &block)
-      definitions[name.to_s] = definition
-    end
+    def build_child_name(relative_name:)
+      relative_name = relative_name&.to_s
+      raise ArgumentError, "`relative_name` must be provided" if relative_name.nil?
+      raise ArgumentError, "#{relative_name} is invalid. `relative_name` must contain only a-z, A-Z, 0-9, and _." unless /^[a-zA-Z_0-9]+$/.match?(relative_name)
 
-    def build_child_name(name:)
-      name = name&.to_s
-      raise ArgumentError, "`name` must be provided" if name.nil?
-      raise ArgumentError, "#{name} is invalid. `name` must contain only a-z, A-Z, 0-9, and _." unless /^[a-zA-Z_0-9]+$/.match?(name)
-
-      arr = ["", self.name, name]
+      arr = ["", self.name, relative_name]
       arr.join("/").gsub(%r{/{2,}}, "/")
-    end
-
-    def ensure_no_conflict!(name:, namespaces:, definitions:)
-      if definitions
-        definition = find_child_definition(name: name)
-        raise Errors::AlreadyDefinedError, definition.name if definition
-      end
-
-      if namespaces
-        ns = find_child_schema(name: name)
-        raise Errors::AlreadyDefinedError, ns.name if ns
-      end
-    end
-
-    def ensure_not_frozen!
-      return unless frozen?
-
-      raise Errors::SchemaFrozenError
     end
 
   end

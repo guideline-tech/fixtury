@@ -85,7 +85,7 @@ module Fixtury
     end
 
     def loaded?(name)
-      dfn = schema.get_definition!(name)
+      dfn = schema.get!(name)
       full_name = dfn.name
       ref = references[full_name]
       result = ref&.real?
@@ -94,13 +94,13 @@ module Fixtury
     end
 
     def loaded_or_loading?(name)
-      dfn = schema.get_definition!(name)
+      dfn = schema.get!(name)
       full_name = dfn.name
       !!references[full_name]
     end
 
     def maybe_load_isolation_dependencies(definition)
-      isolation_key = definition.options[:isolation_key]
+      isolation_key = definition.options[:isolate]
 
       return if isolation_key.nil?
       return if isolation_key == definition.name
@@ -112,7 +112,7 @@ module Fixtury
     def load_isolation_dependencies(isolation_key, target_schema)
       loaded_isolation_keys[isolation_key] = true
       target_schema.definitions.each_value do |dfn|
-        next unless dfn.options[:isolation_key] == isolation_key
+        next unless dfn.options[:isolate] == isolation_key
         next if loaded_or_loading?(dfn.name)
 
         get(dfn.name)
@@ -129,7 +129,7 @@ module Fixtury
       log("getting #{name}", level: LOG_LEVEL_DEBUG)
 
       # Find the definition.
-      dfn = schema.get_definition!(name)
+      dfn = schema.get!(name)
       full_name = dfn.name
 
       # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
