@@ -53,17 +53,19 @@ module Fixtury
       end
 
       def current_isolation_key
-        return nil unless current_execution
+        current_definition&.isolation_key
+      end
 
-        current_execution.definition.options.fetch(:isolate, nil)
+      def current_definition
+        current_execution&.definition
       end
 
       # This is to ensure that ownership is represented by a base_class implementation rather than a subclass.
       def normalized_locator_key(obj)
         return nil unless current_execution
 
-        delegate_object = obj.base_class.new(id: obj.id)
-        current_execution.store.locator.dump(delegate_object)
+        delegate_object = obj.class.base_class.new(id: obj.id)
+        current_execution.store.locator.dump("<mutation_observer>", delegate_object)
       end
 
       def on_record_create(obj)

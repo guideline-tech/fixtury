@@ -37,7 +37,7 @@ module Fixtury
 
     def test_a_store_returns_an_existing_reference_rather_than_reinvoking_the_definition
       store = ::Fixtury::Store.new(schema: schema)
-      ::Fixtury::Definition.any_instance.expects(:call).once.returns("baz")
+      Fixtury::DefinitionExecutor.any_instance.expects(:call).once.returns("baz")
 
       assert_equal "baz", store["foo"]
       assert_equal "baz", store["foo"]
@@ -46,8 +46,6 @@ module Fixtury
     def test_a_ttl_store_does_not_return_expired_refs
       ttl = 10
       ttl_store = ::Fixtury::Store.new(schema: schema, ttl: ttl)
-      dfn = schema.get!("foo")
-      dfn.expects(:call).twice.returns("baz")
 
       t = Time.now
       Time.stubs(:now).returns(t)
@@ -84,9 +82,7 @@ module Fixtury
 
     def test_store_reloads_value_if_locator_cannot_find
       store = ::Fixtury::Store.new(schema: schema)
-
-      defn = schema.get!("foo")
-      defn.expects(:call).twice.returns("baz")
+      Fixtury::DefinitionExecutor.any_instance.expects(:call).twice.returns("baz")
 
       assert_equal "baz", store["foo"]
       store.locator.stubs(:load).returns(nil)

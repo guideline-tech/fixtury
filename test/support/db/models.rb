@@ -1,11 +1,20 @@
 # frozen_string_literal: true
 
 require "active_record"
+require "globalid"
 
 module Support
   module Db
 
-    class User < ::ActiveRecord::Base # rubocop:disable Rails/ApplicationRecord
+    class Base < ::ActiveRecord::Base
+
+      include GlobalID::Identification
+
+      self.abstract_class = true
+
+    end
+
+    class User < Base
 
       self.table_name = :users
 
@@ -13,3 +22,5 @@ module Support
 
   end
 end
+
+GlobalID.app = "fixtury-test"

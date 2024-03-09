@@ -48,7 +48,7 @@ module Fixtury
       assert_equal true, instance.respond_to?(:baz)
 
       assert_equal "bar", instance.barrr
-      assert_raises Fixtury::Errors::FixtureNotDefinedError do
+      assert_raises Fixtury::Errors::SchemaNodeNotDefinedError do
         instance.baz
       end
     end

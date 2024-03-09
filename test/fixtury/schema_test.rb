@@ -11,13 +11,8 @@ module Fixtury
 
     def test_it_allows_fixtures_to_be_defined
       schema.define do
-        fixture :foo do
-          "foo"
-        end
-
-        fixture :bar do
-          "bar"
-        end
+        fixture(:foo) { "foo" }
+        fixture(:bar) { "bar" }
       end
 
       foo_def = schema.get!(:foo)
@@ -27,7 +22,7 @@ module Fixtury
       assert_equal "bar", bar_def.call
     end
 
-    def test_schemas_can_be_used
+    def test_namespaces_can_be_used
       schema.define do
         namespace "bar" do
           fixture "baz" do
@@ -37,11 +32,10 @@ module Fixtury
       end
 
       barbaz_def = schema.get!("bar/baz")
-
       assert_equal "barbaz", barbaz_def.call
     end
 
-    def test_schemas_can_be_used_twice
+    def test_namespaces_can_be_reopened
       schema.define do
         namespace "bar" do
           fixture "baz" do
@@ -91,7 +85,7 @@ module Fixtury
         end
       end
 
-      assert_equal 2, schema.definitions.size
+      assert_equal 2, schema.children.size
     end
 
     def test_the_same_name_cannot_be_used_twice
@@ -105,8 +99,7 @@ module Fixtury
 
       do_it.call
 
-      assert_equal 1, schema.definitions.size
-
+      assert_equal 1, schema.children.size
       assert_raises Errors::AlreadyDefinedError do
         do_it.call
       end
@@ -157,36 +150,6 @@ module Fixtury
 
       assert_equal "foo", foo_def.call
       assert_equal "bar/foo", barfoo_def.call
-    end
-
-    def test_options_are_merged
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      schema.define do
-        namespace "thechild", bar: "bar"
-      end
-
-      assert_equal({ foo: "foo", bar: "bar" }, schema.children["thechild"].options)
-    end
-
-    def test_conflicting_options_raise
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      # doesn't raise because the value is the same
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      # raises because a new value is encountered
-      assert_raises Errors::OptionCollisionError do
-        schema.define do
-          namespace "thechild", foo: "bar"
-        end
-      end
     end
 
   end

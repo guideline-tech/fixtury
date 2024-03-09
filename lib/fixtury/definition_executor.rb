@@ -11,7 +11,7 @@ module Fixtury
       @value = nil
     end
 
-    def __call
+    def call
       maybe_set_store_context do
         ::Fixtury.hooks.call(:execution, self) do
           run_callable(callable: definition.callable)
@@ -39,13 +39,13 @@ module Fixtury
     rescue Errors::Base
       raise
     rescue => e
-      raise Errors::DefinitionExecutionError, [@definition.name, e], e.backtrace
+      raise Errors::DefinitionExecutionError, [definition.name, e], e.backtrace
     end
 
     def maybe_set_store_context
       return yield unless store
 
-      store.with_relative_schema(definition.schema) do
+      store.with_relative_schema(definition.parent) do
         yield
       end
     end

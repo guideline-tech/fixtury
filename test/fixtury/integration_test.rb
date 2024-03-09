@@ -30,7 +30,7 @@ module Fixtury
     end
 
     def test_relatives_miss_if_they_dont_exist
-      assert_raises Errors::FixtureNotDefinedError do
+      assert_raises Errors::SchemaNodeNotDefinedError do
         store["countries/towns/unknown_town"]
       end
     end

@@ -32,12 +32,18 @@ module Fixtury
 
     end
 
-    class FixtureNotDefinedError < Base
+    class SchemaNodeNotDefinedError < Base
 
       def initialize(name)
-        super("A fixture identified by `#{name}` does not exist.")
+        super("A schema node identified by `#{name}` does not exist.")
       end
 
+    end
+
+    class SchemaNodeNameInvalidError < Base
+      def initialize(parent_name, child_name)
+        super("The schema node name `#{child_name}` must start with `#{parent_name}` to be added to it.")
+      end
     end
 
     class OptionCollisionError < Base

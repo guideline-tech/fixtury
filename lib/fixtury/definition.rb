@@ -3,36 +3,25 @@
 module Fixtury
   class Definition
 
-    attr_reader :name
-    attr_reader :schema
-    alias parent schema
-    attr_reader :options
+    include ::Fixtury::SchemaNode
+    extend ::Forwardable
 
     attr_reader :callable
+    alias schema parent
 
-    def initialize(name:, schema: nil, options: {}, &block)
-      @name = name
-      @schema = schema
+    def_delegator :callable, :call
+
+    def initialize(**opts, &block)
+      super(**opts)
       @callable = block
-      @options = options
     end
 
-    def info
-      {
-        name: name,
-        loc: location_from_callable(callable),
-      }
+    def schema_node_type
+      "dfn"
     end
 
-    def call(store: nil)
-      executor = ::Fixtury::DefinitionExecutor.new(store: store, definition: self)
-      executor.__call
-    end
-
-    def location_from_callable(callable)
-      return nil unless callable.respond_to?(:source_location)
-
-      callable.source_location.join(":")
+    def acts_like_fixtury_definition?
+      true
     end
 
   end

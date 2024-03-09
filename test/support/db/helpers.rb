@@ -4,25 +4,23 @@ module Support
   module Db
     module Helpers
 
-      extend ActiveSupport::Concern
+      def uses_db
+        require "support/db/models"
 
-      class_methods do
-        def uses_db
-          require "support/db/models"
-
-          alias_method :setup_without_db, :setup
-          alias_method :setup, :setup_with_db
-        end
+        prepend DbSetup
       end
 
-      def setup_with_db
-        ::ActiveRecord::Base.establish_connection({
-          adapter: "sqlite3",
-          database: ":memory:",
-        })
+      module DbSetup
 
-        load File.join(__dir__, "schema.rb")
-        setup_without_db
+        def setup
+          ::ActiveRecord::Base.establish_connection({
+            adapter: "sqlite3",
+            database: ":memory:",
+          })
+
+          load File.join(__dir__, "schema.rb")
+          super
+        end
       end
 
     end

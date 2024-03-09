@@ -1,29 +1,30 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "fixtury/definition"
-require "fixtury/definition_executor"
 
 module Fixtury
   class DefinitionExecutorTest < Test
 
-    let(:definition) { ::Fixtury::Definition.new(name: "foo"){} }
-    let(:erroring_definition) { ::Fixtury::Definition.new(name: "bar"){ raise "some runtime error" } }
-
-    def test_definition_can_be_executed
-      run_execution(definition)
-    end
-
     def test_definition_execution_errors_are_wrapped_in_execution_error
+      dfn = ::Fixtury::Definition.new(name: "bar"){ raise "some runtime error" }
+      executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
       assert_raises Errors::DefinitionExecutionError do
-        run_execution(erroring_definition)
+        executor.call
       end
     end
 
-    private
+    def test_definition_does_not_yield_if_arity_is_zero
+      dfn = ::Fixtury::Definition.new(name: "foo"){}
+      executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
+      executor.expects(:get).never
+      executor.call
+    end
 
-    def run_execution(dfn)
-      ::Fixtury::DefinitionExecutor.new(definition: dfn).__call
+    def test_definition_yields_itself_if_arity_on_the_block
+      dfn = ::Fixtury::Definition.new(name: "foo") { |s| s.get("thing") }
+      executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
+      executor.expects(:get).with("thing").once.returns("foobar")
+      executor.call
     end
 
   end

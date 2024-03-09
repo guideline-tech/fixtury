@@ -29,8 +29,8 @@ module Fixtury
 
       ::FileUtils.mkdir_p(File.dirname(filepath))
 
-      writable = references.each_with_object({}) do |(full_name, ref), h|
-        h[full_name] = ref if ref.real?
+      writable = references.each_with_object({}) do |(pathname, ref), h|
+        h[pathname] = ref if ref.real?
       end
 
       ::File.binwrite(filepath, writable.to_yaml)
@@ -54,12 +54,9 @@ module Fixtury
     end
 
     def load_all(schema = self.schema)
-      schema.definitions.each_value do |dfn|
-        get(dfn.name)
-      end
-
-      schema.children.each_value do |ns|
-        load_all(ns)
+      schema.children.each_value do |item|
+        get(item.name) if item.acts_like?(:fixtury_definition)
+        load_all(item) if item.acts_like?(:fixtury_schema)
       end
     end
 
@@ -86,40 +83,35 @@ module Fixtury
 
     def loaded?(name)
       dfn = schema.get!(name)
-      full_name = dfn.name
-      ref = references[full_name]
+      ref = references[dfn.pathname]
       result = ref&.real?
-      log(result ? "hit #{full_name}" : "miss #{full_name}", level: LOG_LEVEL_ALL)
+      log(result ? "hit #{dfn.pathname}" : "miss #{dfn.pathname}", level: LOG_LEVEL_ALL)
       result
     end
 
-    def loaded_or_loading?(name)
-      dfn = schema.get!(name)
-      full_name = dfn.name
-      !!references[full_name]
+    def loaded_or_loading?(pathname)
+      !!references[pathname]
     end
 
     def maybe_load_isolation_dependencies(definition)
-      isolation_key = definition.options[:isolate]
-
-      return if isolation_key.nil?
-      return if isolation_key == definition.name
+      isolation_key = definition.isolation_key
       return if loaded_isolation_keys[isolation_key]
 
-      load_isolation_dependencies(isolation_key, schema)
+      load_isolation_dependencies(isolation_key, schema.first_ancestor)
     end
 
     def load_isolation_dependencies(isolation_key, target_schema)
       loaded_isolation_keys[isolation_key] = true
-      target_schema.definitions.each_value do |dfn|
-        next unless dfn.options[:isolate] == isolation_key
-        next if loaded_or_loading?(dfn.name)
-
-        get(dfn.name)
-      end
-
-      target_schema.children.each_value do |ns|
-        load_isolation_dependencies(isolation_key, ns)
+      target_schema.children.each_value do |child|
+        if child.acts_like?(:fixtury_definition)
+          next unless child.isolation_key == isolation_key
+          next if loaded_or_loading?(child.pathname)
+          get(child.pathname)
+        elsif child.acts_like?(:fixtury_schema)
+          load_isolation_dependencies(isolation_key, child)
+        else
+          raise NotImplementedError, "Unknown isolation loading behavior: #{child.class.name}"
+        end
       end
     end
 
@@ -130,62 +122,65 @@ module Fixtury
 
       # Find the definition.
       dfn = schema.get!(name)
-      full_name = dfn.name
+      raise ArgumentError, "#{name.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
+
+      pathname = dfn.pathname
 
       # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
       maybe_load_isolation_dependencies(dfn)
 
       # See if we already hold a reference to the fixture.
-      ref = references[full_name]
+      ref = references[pathname]
 
       # If the reference is a placeholder, we have a circular dependency.
       if ref&.holder?
-        raise Errors::CircularDependencyError, full_name
+        raise Errors::CircularDependencyError, pathname
       end
 
       # If the reference is stale, we should refresh it.
       # We do so by clearing it from the store and setting the reference to nil.
       if ref && reference_stale?(ref)
-        log("refreshing #{full_name}", level: LOG_LEVEL_DEBUG)
-        clear_reference(full_name)
+        log("refreshing #{pathname}", level: LOG_LEVEL_DEBUG)
+        clear_reference(pathname)
         ref = nil
       end
 
       value = nil
 
       if ref
-        log("hit #{full_name}", level: LOG_LEVEL_ALL)
+        log("hit #{pathname}", level: LOG_LEVEL_ALL)
         value = locator.load(ref.locator_key)
         if value.nil?
-          clear_reference(full_name)
+          clear_reference(pathname)
           ref = nil
-          log("missing #{full_name}", level: LOG_LEVEL_ALL)
+          log("missing #{pathname}", level: LOG_LEVEL_ALL)
         end
       end
 
       if value.nil?
         # set the references to a holder value so any recursive behavior ends up hitting a circular dependency error if the same fixture load is attempted
-        references[full_name] = ::Fixtury::Reference.holder(full_name)
+        references[pathname] = ::Fixtury::Reference.holder(pathname)
 
         begin
-          value = dfn.call(store: self)
+          executor = ::Fixtury::DefinitionExecutor.new(store: self, definition: dfn)
+          value = executor.call
         rescue StandardError
-          clear_reference(full_name)
+          clear_reference(pathname)
           raise
         end
 
-        log("store #{full_name}", level: LOG_LEVEL_DEBUG)
+        log("store #{pathname}", level: LOG_LEVEL_DEBUG)
 
-        locator_key = locator.dump(full_name, value)
-        references[full_name] = ::Fixtury::Reference.new(full_name, locator_key)
+        locator_key = locator.dump(pathname, value)
+        references[pathname] = ::Fixtury::Reference.new(pathname, locator_key)
       end
 
       value
     end
     alias [] get
 
-    def clear_reference(name)
-      references.delete(name)
+    def clear_reference(pathname)
+      references.delete(pathname)
     end
 
     def reference_stale?(ref)
@@ -197,19 +192,6 @@ module Fixtury
     def log(msg, level:)
       ::Fixtury.log(msg, level: level, name: "store")
     end
-
-    def determine_isolation_key(definition)
-      value = definition.options[:isolate]
-      case value
-      when true
-        definition.name
-      when String, Symbol
-        value.to_s
-      else
-        nil
-      end
-    end
-
 
   end
 end

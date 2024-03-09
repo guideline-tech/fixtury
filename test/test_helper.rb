@@ -10,7 +10,7 @@ require "support/db/helpers"
 class Test < Minitest::Test
 
   extend ::Minitest::Spec::DSL # for let
-  include ::Support::Db::Helpers
+  extend ::Support::Db::Helpers
 
   def before_setup
     ::Fixtury.schema = ::Fixtury::Schema.new

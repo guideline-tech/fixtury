@@ -5,18 +5,22 @@ require "active_support/core_ext/array/extract_options"
 require "active_support/core_ext/module/attribute_accessors"
 require "active_support/core_ext/module/delegation"
 require "active_support/core_ext/object/acts_like"
+require "active_support/core_ext/object/blank"
 
 require "fixtury/version"
 
 require "fixtury/definition_executor"
-require "fixtury/definition"
 require "fixtury/errors"
 require "fixtury/hooks"
 require "fixtury/locator"
-require "fixtury/path"
+require "fixtury/path_resolver"
 require "fixtury/reference"
-require "fixtury/schema"
 require "fixtury/store"
+
+require "fixtury/schema_node"
+require "fixtury/definition"
+require "fixtury/schema"
+
 
 # Top level namespace of the gem. The accessors provided on the Fixtury namespace are meant to be shared
 # across the entire application. The Fixtury::Schema instance is the primary interface for defining and
