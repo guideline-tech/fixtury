@@ -10,6 +10,8 @@ require "active_support/core_ext/object/blank"
 require "fixtury/version"
 
 require "fixtury/definition_executor"
+require "fixtury/dependency"
+require "fixtury/dependency_store"
 require "fixtury/errors"
 require "fixtury/hooks"
 require "fixtury/locator"

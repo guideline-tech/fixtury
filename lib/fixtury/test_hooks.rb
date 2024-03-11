@@ -1,23 +1,38 @@
 # frozen_string_literal: true
 
+require "fixtury"
 require "active_support/core_ext/class/attribute"
 
 module Fixtury
   module TestHooks
 
-    extend ::ActiveSupport::Concern
+    def self.prepended(klass)
+      klass.class_attribute :fixtury_dependencies
+      klass.fixtury_dependencies = Set.new
+      klass.extend ClassMethods
+    end
 
-    included do
-      class_attribute :fixtury_dependencies
-      self.fixtury_dependencies = Set.new
+    def self.included(klass)
+      raise ArgumentError, "#{name} should be prepended, not included"
     end
 
     module ClassMethods
 
-      def fixtury(*names, **opts)
-        self.fixtury_dependencies += names.flatten.map do |name|
-          name.start_with?("/") ? name : "/#{name}"
-        end.compact.map(&:to_s)
+      def fixtury_store
+        ::Fixtury.store
+      end
+
+      def fixtury_schema
+        ::Fixtury.schema
+      end
+
+      def fixtury(*searches, **opts)
+        pathnames = searches.map do |search|
+          dfn = fixtury_schema.get!(search)
+          dfn.pathname
+        end
+
+        self.fixtury_dependencies += pathnames
 
         accessor_option = opts[:as]
         accessor_option = opts[:accessor] if accessor_option.nil? # old version, backwards compatability
@@ -25,20 +40,24 @@ module Fixtury
 
         if accessor_option
 
-          if accessor_option != true && names.length > 1
+          if accessor_option != true && pathnames.length > 1
             raise ArgumentError, "A named :as option is only available when providing one fixture"
           end
 
-          names.each do |fixture_name|
-            method_name = accessor_option == true ? fixture_name.split("/").last : accessor_option
-            ivar = :"@#{method_name}"
+          pathnames.each do |pathname|
+            method_name = (accessor_option == true ? pathname.split("/").last : accessor_option).to_sym
+
+            if method_defined?(method_name)
+              raise ArgumentError, "A method by the name of #{method_name} already exists in #{self}"
+            end
+
+            ivar = :"@fixtury_#{method_name}"
 
             class_eval <<-EV, __FILE__, __LINE__ + 1
               def #{method_name}
                 return #{ivar} if defined?(#{ivar})
 
-                value = fixtury("#{fixture_name}")
-                #{ivar} = value
+                #{ivar} = fixtury("#{pathname}")
               end
             EV
           end
@@ -47,63 +66,50 @@ module Fixtury
 
     end
 
-    def fixtury(name)
-      return nil unless fixtury_store
-
-      name = name.to_s
-      name = "/#{name}" unless name.start_with?("/")
-
-      unless fixtury_dependencies.include?(name)
-        raise Errors::UnknownFixturyDependency, "Unrecognized fixtury dependency `#{name}` for #{self.class}"
-      end
-
-      fixtury_store.get(name)
+    def before_setup(...)
+      fixtury_setup if fixtury_dependencies.any?
+      super
     end
 
-    def fixtury_store
-      ::Fixtury.store
+    def after_teardown(...)
+      super
+      fixtury_teardown if fixtury_dependencies.any?
+    end
+
+
+    def fixtury(name)
+      return nil unless self.class.fixtury_store
+
+      dfn = self.class.fixtury_schema.get!(name)
+
+      unless fixtury_dependencies.include?(dfn.pathname)
+        raise Errors::UnknownTestDependencyError, "Unrecognized fixtury dependency `#{dfn.pathname}` for #{self.class}"
+      end
+
+      self.class.fixtury_store.get(dfn.pathname)
     end
 
     def fixtury_loaded?(name)
-      return false unless fixtury_store
+      return false unless self.class.fixtury_store
 
-      fixtury_store.loaded?(name)
+      self.class.fixtury_store.loaded?(name)
     end
 
     def fixtury_database_connections
-      ActiveRecord::Base.connection_handler.connection_pool_list.map(&:connection)
+      ActiveRecord::Base.connection_handler.connection_pool_list(:writing).map(&:connection)
     end
 
-    # piggybacking activerecord fixture setup for now.
-    def setup_fixtures(*args)
-      if fixtury_dependencies.any?
-        setup_fixtury_fixtures
-      else
-        super
-      end
-    end
-
-    # piggybacking activerecord fixture setup for now.
-    def teardown_fixtures(*args)
-      if fixtury_dependencies.any?
-        teardown_fixtury_fixtures
-      else
-        super
-      end
-    end
-
-    def setup_fixtury_fixtures
+    def fixtury_setup
+      fixtury_clear_stale_fixtures!
+      fixtury_load_all_fixtures!
       return unless fixtury_use_transactions?
-
-      clear_expired_fixtury_fixtures!
-      load_all_fixtury_fixtures!
 
       fixtury_database_connections.each do |conn|
         conn.begin_transaction joinable: false
       end
     end
 
-    def teardown_fixtury_fixtures
+    def fixtury_teardown
       return unless fixtury_use_transactions?
 
       fixtury_database_connections.each do |conn|
@@ -111,13 +117,13 @@ module Fixtury
       end
     end
 
-    def clear_expired_fixtury_fixtures!
-      return unless fixtury_store
+    def fixtury_clear_stale_fixtures!
+      return unless self.class.fixtury_store
 
-      fixtury_store.clear_expired_references!
+      self.class.fixtury_store.clear_stale_references!
     end
 
-    def load_all_fixtury_fixtures!
+    def fixtury_load_all_fixtures!
       fixtury_dependencies.each do |name|
         unless fixtury_loaded?(name)
           ::Fixtury.log("preloading #{name.inspect}", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)

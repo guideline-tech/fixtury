@@ -13,17 +13,17 @@ module Fixtury
       end
     end
 
-    def test_definition_does_not_yield_if_arity_is_zero
+    def test_definition_does_not_yield_anything_if_arity_is_zero
       dfn = ::Fixtury::Definition.new(name: "foo"){}
       executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
       executor.expects(:get).never
       executor.call
     end
 
-    def test_definition_yields_itself_if_arity_on_the_block
+    def test_definition_yields_a_dependency_store_if_arity_is_positive
       dfn = ::Fixtury::Definition.new(name: "foo") { |s| s.get("thing") }
       executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
-      executor.expects(:get).with("thing").once.returns("foobar")
+      Fixtury::DependencyStore.any_instance.expects(:get).with("thing").once.returns("foobar")
       executor.call
     end
 

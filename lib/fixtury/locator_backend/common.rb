@@ -4,24 +4,24 @@ module Fixtury
   module LocatorBackend
     module Common
 
-      def recognized_reference?(_locator_value)
+      def recognizable_key?(_locator_value)
         raise NotImplementedError
       end
 
-      def recognized_value?(_stored_value)
+      def recognizable_value?(_stored_value)
         raise NotImplementedError
       end
 
-      def load_recognized_reference(_locator_value)
+      def load_reference(_locator_value)
         raise NotImplementedError
       end
 
-      def dump_recognized_value(_stored_value)
+      def dump_value(_stored_value)
         raise NotImplementedError
       end
 
       def load(locator_value)
-        return load_recognized_reference(locator_value) if recognized_reference?(locator_value)
+        return load_reference(locator_value) if recognizable_key?(locator_value)
 
         case locator_value
         when Array
@@ -36,7 +36,7 @@ module Fixtury
       end
 
       def dump(stored_value)
-        return dump_recognized_value(stored_value) if recognized_value?(stored_value)
+        return dump_value(stored_value) if recognizable_value?(stored_value)
 
         case stored_value
         when Array

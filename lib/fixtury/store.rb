@@ -24,6 +24,17 @@ module Fixtury
       @loaded_isolation_keys = {}
     end
 
+    def inspect
+      parts = []
+      parts << "schema: #{schema.inspect}"
+      parts << "locator: #{locator.inspect}"
+      parts << "filepath: #{filepath.inspect}" if filepath
+      parts << "ttl: #{ttl.inspect}" if ttl
+      parts << "references: #{references.size}"
+
+      "#{self.class}(#{parts.join(", ")})"
+    end
+
     def dump_to_file
       return unless filepath
 
@@ -43,13 +54,13 @@ module Fixtury
       ::YAML.unsafe_load_file(filepath)
     end
 
-    def clear_expired_references!
+    def clear_stale_references!
       return unless ttl
 
       references.delete_if do |name, ref|
-        is_expired = ref_invalid?(ref)
-        log("expiring #{name}", level: LOG_LEVEL_DEBUG) if is_expired
-        is_expired
+        stale = reference_stale?(ref)
+        log("expiring #{name}", level: LOG_LEVEL_DEBUG) if stale
+        stale
       end
     end
 
@@ -171,7 +182,7 @@ module Fixtury
 
         log("store #{pathname}", level: LOG_LEVEL_DEBUG)
 
-        locator_key = locator.dump(pathname, value)
+        locator_key = locator.dump(value, context: pathname)
         references[pathname] = ::Fixtury::Reference.new(pathname, locator_key)
       end
 
@@ -186,7 +197,7 @@ module Fixtury
     def reference_stale?(ref)
       return true if ttl && ref.created_at < (Time.now.to_i - ttl)
 
-      !locator.recognize?(ref.locator_key)
+      !locator.recognizable_key?(ref.locator_key)
     end
 
     def log(msg, level:)

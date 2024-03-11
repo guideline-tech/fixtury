@@ -16,9 +16,9 @@ module Fixtury
 
     let(:circular_schema) do
       ::Fixtury::Schema.new(parent: nil, name: "test").define do
-        fixture("foo") { |s| s["bar"] }
-        fixture("bar") { |s| s["baz"] }
-        fixture("baz") { |s| s["foo"] }
+        fixture("foo", deps: "bar") { |s| s["bar"] }
+        fixture("bar", deps: "baz") { |s| s["baz"] }
+        fixture("baz", deps: "foo") { |s| s["foo"] }
       end
     end
 

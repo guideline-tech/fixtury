@@ -3,7 +3,7 @@ module Fixtury
 
     extend ActiveSupport::Concern
 
-    VALID_NODE_NAME = /^[a-z0-9_]*$/
+    VALID_NODE_NAME = /^[a-zA-Z0-9_]*$/
 
     included do
       attr_reader :name, :pathname, :parent, :children, :options
@@ -15,11 +15,15 @@ module Fixtury
 
       @name = name
       @parent = parent
-      @pathname = [parent&.pathname || "/", @name].compact.join("/").gsub(%r{/+}, "/")
+      @pathname = File.join(*[parent&.pathname, "/", @name].compact).to_s
       @children = {}
       @options = {}
       apply_options!(options)
       @parent.add_child(self) if @parent
+    end
+
+    def inspect
+      "#{self.class}(pathname: #{pathname.inspect}, children: #{children.size})"
     end
 
     def schema_node_type
@@ -57,7 +61,7 @@ module Fixtury
 
     def get!(search)
       thing = get(search)
-      raise Errors::SchemaNodeNotDefinedError, search unless thing
+      raise Errors::SchemaNodeNotDefinedError.new(pathname, search) unless thing
 
       thing
     end

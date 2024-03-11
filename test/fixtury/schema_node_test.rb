@@ -112,6 +112,12 @@ module Fixtury
       end
     end
 
+    def test__inspect__doesnt_represent_nested_structure
+      s = build_complex_schema
+      assert_equal "#{Node.name}(pathname: \"\/\", children: 2)", s[:root].inspect
+      assert_equal "#{Node.name}(pathname: \"\/ns1\/ns2\", children: 1)", s[:ns2].inspect
+    end
+
     private
 
     def build_complex_schema

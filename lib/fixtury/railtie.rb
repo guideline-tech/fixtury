@@ -9,10 +9,6 @@ module Fixtury
 
     initializer "fixtury.activerecord_hooks" do
       require "fixtury/mutation_observer"
-
-      ActiveSupport.on_load do :active_record
-        Fixtury::MutationObserver::ActiveRecordHooks.install!
-      end
     end
 
   end

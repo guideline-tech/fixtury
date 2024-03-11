@@ -10,19 +10,19 @@ module Fixtury
 
       include ::Fixtury::LocatorBackend::Common
 
-      def recognized_reference?(ref)
-        ref.is_a?(String)
+      def recognizable_key?(locator_key)
+        locator_key.is_a?(String)
       end
 
-      def recognized_value?(value)
+      def recognizable_value?(value)
         value.is_a?(String)
       end
 
-      def load_recognized_reference(ref)
-        "#{ref.sub("ref-", "")}-value"
+      def load_reference(locator_key)
+        "#{locator_key.sub("ref-", "")}-value"
       end
 
-      def dump_recognized_value(value)
+      def dump_value(value)
         "#{value.sub("-value", "")}-ref"
       end
 
@@ -35,7 +35,7 @@ module Fixtury
 
       loc = ::Fixtury::Locator.new(backend: backend)
       assert_equal "foo_value", loc.load("foo")
-      assert_equal "bar_ref", loc.dump("name", "bar")
+      assert_equal "bar_ref", loc.dump("bar")
     end
 
     def test_it_provides_a_default_locator
@@ -46,8 +46,7 @@ module Fixtury
     end
 
     def test_structures_can_located
-      backend = PassThroughBackend.new
-      loc = ::Fixtury::Locator.new(backend: backend)
+      loc = ::Fixtury::Locator.new(backend: PassThroughBackend.new)
 
       assert_equal({ foo: "foo-value" }, loc.load({ foo: "ref-foo" }))
       assert_equal(["foo-value"], loc.load(["ref-foo"]))

@@ -8,7 +8,7 @@
       "Country"
     end
 
-    fixture "reverse_country" do |store|
+    fixture "reverse_country", deps: :country do |store|
       store[:country].reverse
     end
 
@@ -16,25 +16,25 @@
       "Relative Earth"
     end
 
-    fixture "relative_country" do |store|
+    fixture "relative_country", deps: %w[country earth] do |store|
       "#{store[:country]}, #{store[:earth]}"
     end
 
-    fixture "absolute_country" do |store|
-      "#{store[:country]}, #{store["/earth"]}"
+    fixture "absolute_country", deps: %w[country /earth] do |store|
+      "#{store[:country]}, #{store["earth"]}"
     end
 
     namespace "towns" do
-      fixture "unknown_town" do |store|
-        "Town, #{store["./earth"]}"
+      fixture "unknown_town", deps: "./earth" do |deps|
+        "Town, #{deps.earth}"
       end
 
-      fixture "relative_town" do |store|
-        "Town, #{store["../earth"]}"
+      fixture "relative_town", deps: "../earth" do |deps|
+        "Town, #{deps.earth}"
       end
 
-      fixture "absolute_town" do |store|
-        "Town, #{store["/earth"]}"
+      fixture "absolute_town", deps: "/earth" do |deps|
+        "Town, #{deps["earth"]}"
       end
     end
   end

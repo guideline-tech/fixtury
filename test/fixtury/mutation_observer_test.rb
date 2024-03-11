@@ -20,11 +20,11 @@ module Fixtury
 
       ::Fixtury.define do
         fixture(:user) { Support::Db::User.create!(first_name: "Doug", last_name: "Wilson") }
-        fixture(:updated_user) { |store| store["user"].tap { |u| u.update(first_name: "Douglas") } }
+        fixture(:updated_user, deps: "user") { |deps| deps.user.tap { |u| u.update(first_name: "Douglas") } }
 
         namespace "isolated", isolate: true do
           fixture(:user) { Support::Db::User.create!(first_name: "Dave", last_name: "Wilson") }
-          fixture(:updated_user) { |store| store["user"].tap { |u| u.update(first_name: "David") } }
+          fixture(:updated_user, deps: "user") { |deps| deps.user.tap { |u| u.update(first_name: "David") } }
         end
       end
 

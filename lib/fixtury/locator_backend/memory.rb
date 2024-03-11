@@ -10,15 +10,15 @@ module Fixtury
 
       MATCHER = /^fixtury-oid-(?<object_id>[\d]+)$/.freeze
 
-      def recognized_reference?(locator_value)
+      def recognizable_key?(locator_value)
         locator_value.is_a?(String) && MATCHER.match?(locator_value)
       end
 
-      def recognized_value?(_stored_value)
+      def recognizable_value?(_stored_value)
         true
       end
 
-      def load_recognized_reference(locator_value)
+      def load_reference(locator_value)
         match = MATCHER.match(locator_value)
         return nil unless match
 
@@ -27,7 +27,7 @@ module Fixtury
         nil
       end
 
-      def dump_recognized_value(stored_value)
+      def dump_value(stored_value)
         "fixtury-oid-#{stored_value.object_id}"
       end
 

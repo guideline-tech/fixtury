@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module Fixtury
+  # A container that manages the execution of a definition in the context of a store.
   class DefinitionExecutor
 
     attr_reader :value, :definition, :store
@@ -12,42 +13,36 @@ module Fixtury
     end
 
     def call
-      maybe_set_store_context do
-        ::Fixtury.hooks.call(:execution, self) do
-          run_callable(callable: definition.callable)
-        end
-      end
-
+      run_definition
       value
     end
 
-    def get(name)
-      raise ArgumentError, "A store is required for #{definition.name}" unless store
-
-      store.get(name)
-    end
-    alias [] get
-
     private
 
-    def run_callable(callable:)
+    # If the callable has a positive arity we generate a DependencyStore
+    # and yield it to the callable. Otherwise we just instance_eval the callable.
+    # We wrap the actual execution of the definition with a hook for observation.
+    def run_definition
+      callable = definition.callable
+
       @value = if callable.arity.positive?
-        instance_exec(self, &callable)
+        deps = build_dependency_store
+        ::Fixtury.hooks.call(:execution, self) do
+          instance_exec(deps, &callable)
+        end
       else
-        instance_eval(&callable)
+        ::Fixtury.hooks.call(:execution, self) do
+          instance_eval(&callable)
+        end
       end
     rescue Errors::Base
       raise
     rescue => e
-      raise Errors::DefinitionExecutionError, [definition.name, e], e.backtrace
+      raise Errors::DefinitionExecutionError.new(definition.pathname, e)
     end
 
-    def maybe_set_store_context
-      return yield unless store
-
-      store.with_relative_schema(definition.parent) do
-        yield
-      end
+    def build_dependency_store
+      DependencyStore.new(definition: definition, store: store)
     end
 
   end
