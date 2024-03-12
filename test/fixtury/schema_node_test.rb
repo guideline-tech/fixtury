@@ -7,11 +7,6 @@ module Fixtury
 
     class Node
       include ::Fixtury::SchemaNode
-
-      def schema_node_type
-        first_ancestor? ? "root_node" : "node"
-      end
-
     end
 
     def test__isolation_key__inherits_from_parent_first
@@ -32,12 +27,9 @@ module Fixtury
       assert_nil node.isolation_key
     end
 
-    def test__schema_node_type__should_be_implemented
-      k = Class.new do
-        include ::Fixtury::SchemaNode
-      end
-      node = k.new(name: "foo")
-      assert_raises(NotImplementedError) { node.schema_node_type }
+    def test__schema_node_type__should_default_to_the_demodularized_class_name
+      node = Node.new(name: "foo")
+      assert_equal "node", node.schema_node_type
     end
 
     def test__acts_like__integration
@@ -116,6 +108,18 @@ module Fixtury
       s = build_complex_schema
       assert_equal "#{Node.name}(pathname: \"\/\", children: 2)", s[:root].inspect
       assert_equal "#{Node.name}(pathname: \"\/ns1\/ns2\", children: 1)", s[:ns2].inspect
+    end
+
+
+    def test_structure_is_represented
+      node = Node.new(name: "foo"){}
+      assert_equal "node:foo", node.structure
+
+      node = Node.new(name: "foo", optiona: "optiona", optionb: "optionb"){}
+      assert_equal "node:foo(optiona: \"optiona\", optionb: \"optionb\")", node.structure
+
+      node = Node.new(name: "foo", optiona: "optiona", optionb: "optionb", isolate: "/foo/bar/baz"){}
+      assert_equal "node:foo[/foo/bar/baz](optiona: \"optiona\", optionb: \"optionb\")", node.structure
     end
 
     private

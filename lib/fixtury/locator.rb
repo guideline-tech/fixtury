@@ -8,6 +8,24 @@ module Fixtury
   # The backend is expected to implement the following methods: recognizable_key?, recognized_value?, load_recognized_reference, dump_recognized_value.
   class Locator
 
+    def self.from(thing)
+      case thing
+      when ::Fixtury::Locator
+        thing
+      when nil
+         ::Fixtury::Locator.new
+      when Symbol
+        begin
+          require "fixtury/locator_backend/#{thing}"
+        rescue LoadError
+        end
+        backend = ::Fixtury::LocatorBackend.const_get(thing.to_s.camelize, false).new
+        ::Fixtury::Locator.new(backend: backend)
+      else
+        raise ArgumentError, "Unable to create a locator from #{thing.inspect}"
+      end
+    end
+
     attr_reader :backend
 
     def initialize(backend: ::Fixtury::LocatorBackend::Memory.new)

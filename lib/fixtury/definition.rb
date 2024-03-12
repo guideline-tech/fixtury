@@ -28,13 +28,6 @@ module Fixtury
       @callable = block
     end
 
-    # Returns the type of the schema node.
-    #
-    # @return [String] The schema node type.
-    def schema_node_type
-      "dfn"
-    end
-
     # Indicates whether the Definition acts like a Fixtury definition.
     #
     # @return [Boolean] `true` if it acts like a Fixtury definition, `false` otherwise.

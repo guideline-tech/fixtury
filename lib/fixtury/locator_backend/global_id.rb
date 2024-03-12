@@ -5,7 +5,7 @@ require "globalid"
 
 module Fixtury
   module LocatorBackend
-    class GlobalID
+    class GlobalId
 
       include ::Fixtury::LocatorBackend::Common
 

@@ -31,7 +31,7 @@ module Fixtury
       ref = store.references["/test/foo"]
 
       assert_equal "/test/foo", ref.name
-      assert_equal "fixtury-oid-#{"foo".object_id}", ref.locator_key
+      assert_equal "fixtury-oid-#{Process.pid}-#{"foo".object_id}", ref.locator_key
       assert_equal t, ref.created_at
     end
 

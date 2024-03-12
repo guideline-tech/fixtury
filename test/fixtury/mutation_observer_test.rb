@@ -1,17 +1,12 @@
 require "test_helper"
 require "fixtury/mutation_observer"
-require "fixtury/locator_backend/globalid"
 
 module Fixtury
   class MutationObserverTest < ::Test
 
     uses_db
 
-    let :locator do
-      ::Fixtury::Locator.new(
-        backend: ::Fixtury::LocatorBackend::GlobalID.new
-      )
-    end
+    let(:locator) { ::Fixtury::Locator.from(:global_id) }
 
     def setup
       super
@@ -24,7 +19,7 @@ module Fixtury
 
         namespace "isolated", isolate: true do
           fixture(:user) { Support::Db::User.create!(first_name: "Dave", last_name: "Wilson") }
-          fixture(:updated_user, deps: "user") { |deps| deps.user.tap { |u| u.update(first_name: "David") } }
+          fixture(:updated_user, deps: "user") { |deps| deps.user.tap { |u| u.update!(first_name: "David") } }
         end
       end
 

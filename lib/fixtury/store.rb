@@ -5,58 +5,52 @@ require "singleton"
 require "yaml"
 
 module Fixtury
+  # A store is a container for built fixture references. It is responsible for loading and caching fixtures
+  # based on a schema and a locator.
   class Store
 
-    attr_reader :filepath
     attr_reader :loaded_isolation_keys
     attr_reader :locator
-    attr_reader :log_level
     attr_reader :references
     attr_reader :schema
     attr_reader :ttl
 
-    def initialize(filepath: nil, locator: nil, ttl: nil, schema: nil)
+    # Create a new store.
+    # @param locator [Fixtury::Locator, Symbol, NilClass] (see Fixtury::Locator#from)
+    # @param ttl [Integer, NilClass] The time-to-live for references in seconds.
+    # @param schema [Fixtury::Schema, NilClass] The schema to use for fixture definitions, defaults to the global schema.
+    # @return [Fixtury::Store]
+    def initialize(locator: nil, ttl: nil, schema: nil)
       @schema = schema || ::Fixtury.schema
-      @locator = locator || ::Fixtury::Locator.new
-      @filepath = filepath
-      @references = load_reference_from_file || {}
+      @locator = ::Fixtury::Locator.from(locator)
+      @references = ::Fixtury.dependency_manager.stored_references
       @ttl = ttl&.to_i
       @loaded_isolation_keys = {}
     end
 
+    # Empty the store of any references and loaded isolation keys.
+    def reset
+      references.clear
+      loaded_isolation_keys.clear
+    end
+
+    # Summarize the current state of the store.
+    #
+    # @return [String]
     def inspect
       parts = []
       parts << "schema: #{schema.inspect}"
       parts << "locator: #{locator.inspect}"
-      parts << "filepath: #{filepath.inspect}" if filepath
       parts << "ttl: #{ttl.inspect}" if ttl
       parts << "references: #{references.size}"
 
       "#{self.class}(#{parts.join(", ")})"
     end
 
-    def dump_to_file
-      return unless filepath
-
-      ::FileUtils.mkdir_p(File.dirname(filepath))
-
-      writable = references.each_with_object({}) do |(pathname, ref), h|
-        h[pathname] = ref if ref.real?
-      end
-
-      ::File.binwrite(filepath, writable.to_yaml)
-    end
-
-    def load_reference_from_file
-      return unless filepath
-      return unless File.file?(filepath)
-
-      ::YAML.unsafe_load_file(filepath)
-    end
-
+    # Clear any references that are beyond their ttl or are no longer recognizable by the locator.
+    #
+    # @return [void]
     def clear_stale_references!
-      return unless ttl
-
       references.delete_if do |name, ref|
         stale = reference_stale?(ref)
         log("expiring #{name}", level: LOG_LEVEL_DEBUG) if stale
@@ -64,6 +58,11 @@ module Fixtury
       end
     end
 
+    # Load all fixtures in the target schema, defaulting to the store's schema.
+    # This will load all fixtures in the schema and any child schemas.
+    #
+    # @param schema [Fixtury::Schema] The schema to load, defaults to the store's schema.
+    # @return [void]
     def load_all(schema = self.schema)
       schema.children.each_value do |item|
         get(item.name) if item.acts_like?(:fixtury_definition)
@@ -71,19 +70,12 @@ module Fixtury
       end
     end
 
-    def clear_cache!(pattern: nil)
-      pattern ||= "*"
-      pattern = "/#{pattern}" unless pattern.start_with?("/")
-      glob = pattern.end_with?("*")
-      pattern = pattern[0...-1] if glob
-      references.delete_if do |key, _value|
-        hit = glob ? key.start_with?(pattern) : key == pattern
-        log("clearing #{key}", level: LOG_LEVEL_DEBUG) if hit
-        hit
-      end
-      dump_to_file
-    end
-
+    # Temporarily set a contextual schema to use for loading fixtures. This is
+    # useful when evaluating dependencies of a definition while still storing the results.
+    #
+    # @param schema [Fixtury::Schema] The schema to use.
+    # @yield [void] The block to execute with the given schema.
+    # @return [Object] The result of the block
     def with_relative_schema(schema)
       prior = @schema
       @schema = schema
@@ -92,53 +84,38 @@ module Fixtury
       @schema = prior
     end
 
-    def loaded?(name)
-      dfn = schema.get!(name)
+    # Is a fixture for the given search already loaded?
+    #
+    # @param search [String] The name of the fixture to search for.
+    # @return [TrueClass, FalseClass] `true` if the fixture is loaded, `false` otherwise.
+    def loaded?(search)
+      dfn = schema.get!(search)
       ref = references[dfn.pathname]
       result = ref&.real?
       log(result ? "hit #{dfn.pathname}" : "miss #{dfn.pathname}", level: LOG_LEVEL_ALL)
       result
     end
 
-    def loaded_or_loading?(pathname)
-      !!references[pathname]
-    end
-
-    def maybe_load_isolation_dependencies(definition)
-      isolation_key = definition.isolation_key
-      return if loaded_isolation_keys[isolation_key]
-
-      load_isolation_dependencies(isolation_key, schema.first_ancestor)
-    end
-
-    def load_isolation_dependencies(isolation_key, target_schema)
-      loaded_isolation_keys[isolation_key] = true
-      target_schema.children.each_value do |child|
-        if child.acts_like?(:fixtury_definition)
-          next unless child.isolation_key == isolation_key
-          next if loaded_or_loading?(child.pathname)
-          get(child.pathname)
-        elsif child.acts_like?(:fixtury_schema)
-          load_isolation_dependencies(isolation_key, child)
-        else
-          raise NotImplementedError, "Unknown isolation loading behavior: #{child.class.name}"
-        end
-      end
-    end
-
     # Fetch a fixture by name. This will load the fixture if it has not been loaded yet.
     # If a definition contains an isolation key, all fixtures with the same isolation key will be loaded.
-    def get(name)
-      log("getting #{name}", level: LOG_LEVEL_DEBUG)
+    #
+    # @param search [String] The name of the fixture to search for.
+    # @return [Object] The loaded fixture.
+    # @raise [Fixtury::Errors::CircularDependencyError] if a circular dependency is detected.
+    # @raise [Fixtury::Errors::SchemaNodeNotDefinedError] if the search does not return a node.
+    # @raise [Fixtury::Errors::UnknownDefinitionError] if the search does not return a definition.
+    # @raise [Fixtury::Errors::DefinitionExecutorError] if the definition executor fails.
+    def get(search)
+      log("getting #{search} relative to #{schema.pathname}", level: LOG_LEVEL_DEBUG)
 
       # Find the definition.
-      dfn = schema.get!(name)
-      raise ArgumentError, "#{name.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
+      dfn = schema.get!(search)
+      raise ArgumentError, "#{search.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
 
       pathname = dfn.pathname
 
       # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
-      maybe_load_isolation_dependencies(dfn)
+      maybe_load_isolation_dependencies(dfn.isolation_key)
 
       # See if we already hold a reference to the fixture.
       ref = references[pathname]
@@ -190,16 +167,65 @@ module Fixtury
     end
     alias [] get
 
+    protected
+
+    # Determine if the given pathname is already loaded or is currently being loaded.
+    #
+    # @param pathname [String] The pathname to check.
+    # @return [TrueClass, FalseClass] `true` if the pathname is already loaded or is currently being loaded, `false` otherwise.
+    def loaded_or_loading?(pathname)
+      !!references[pathname]
+    end
+
+    # Load all fixtures with the given isolation key in the target schema
+    # if we're not already attempting to load them.
+    def maybe_load_isolation_dependencies(isolation_key)
+      return if loaded_isolation_keys[isolation_key]
+      loaded_isolation_keys[isolation_key] = true
+
+      load_isolation_dependencies(isolation_key, schema.first_ancestor)
+    end
+
+    # Load all fixtures with the given isolation key in the target schema.
+    #
+    # @param isolation_key [String] The isolation key to load fixtures for.
+    # @param target_schema [Fixtury::Schema] The schema to search within.
+    # @return [void]
+    def load_isolation_dependencies(isolation_key, target_schema)
+      target_schema.children.each_value do |child|
+        if child.acts_like?(:fixtury_definition)
+          next unless child.isolation_key == isolation_key
+          next if loaded_or_loading?(child.pathname)
+
+          get(child.pathname)
+        elsif child.acts_like?(:fixtury_schema)
+          load_isolation_dependencies(isolation_key, child)
+        else
+          raise NotImplementedError, "Unknown isolation loading behavior: #{child.class.name}"
+        end
+      end
+    end
+
+    # Remove a reference at the given pathname from the stored references.
+    #
+    # @param pathname [String] The pathname to remove.
+    # @return [void]
     def clear_reference(pathname)
       references.delete(pathname)
     end
 
+    # Determine if a reference is stale. A reference is stale if it is beyond its ttl or
+    # if it is no longer recognizable by the locator.
+    #
+    # @param ref [Fixtury::Reference] The reference to check.
+    # @return [TrueClass, FalseClass] `true` if the reference is stale, `false` otherwise.
     def reference_stale?(ref)
       return true if ttl && ref.created_at < (Time.now.to_i - ttl)
 
       !locator.recognizable_key?(ref.locator_key)
     end
 
+    # Log a contextual message using Fixtury.log
     def log(msg, level:)
       ::Fixtury.log(msg, level: level, name: "store")
     end

@@ -11,6 +11,7 @@ require "fixtury/version"
 
 require "fixtury/definition_executor"
 require "fixtury/dependency"
+require "fixtury/dependency_manager"
 require "fixtury/dependency_store"
 require "fixtury/errors"
 require "fixtury/hooks"
@@ -66,6 +67,10 @@ module Fixtury
 
   def self.store=(store)
     @store = store
+  end
+
+  def self.dependency_manager
+    @dependency_manager ||= ::Fixtury::DependencyManager.new
   end
 
   def self.log_level
