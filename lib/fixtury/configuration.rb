@@ -1,10 +1,9 @@
 require "digest"
 
 module Fixtury
-  # Provides an interface for managing file dependencies related to fixture
-  # generation. Checksums are tracked and evaluated to determine if a reset is
-  # necessary.
-  class DependencyManager
+  # Provides an interface for managing settings and dependencies related to fixture
+  # generation.
+  class Configuration
 
     attr_reader :filepath, :fixture_files, :dependency_files
 
@@ -12,6 +11,15 @@ module Fixtury
       @filepath = nil
       @fixture_files = Set.new
       @dependency_files = Set.new
+    end
+
+    def log_level
+      return @log_level if @log_level
+
+      @log_level = ENV["FIXTURY_LOG_LEVEL"]
+      @log_level ||= DEFAULT_LOG_LEVEL
+      @log_level = @log_level.to_s.to_sym
+      @log_level
     end
 
     # Remove all references from teh active store and reset the dependency file

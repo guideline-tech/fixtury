@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "concurrent/atomic/thread_local_var"
 require "fileutils"
 require "singleton"
 require "yaml"
@@ -9,9 +10,7 @@ module Fixtury
   # based on a schema and a locator.
   class Store
 
-    attr_reader :loaded_isolation_keys
     attr_reader :locator
-    attr_reader :references
     attr_reader :schema
     attr_reader :ttl
 
@@ -23,9 +22,23 @@ module Fixtury
     def initialize(locator: nil, ttl: nil, schema: nil)
       @schema = schema || ::Fixtury.schema
       @locator = ::Fixtury::Locator.from(locator)
-      @references = ::Fixtury.dependency_manager.stored_references
       @ttl = ttl&.to_i
-      @loaded_isolation_keys = {}
+      self.references = ::Fixtury.configuration.stored_references
+    end
+
+    def references
+      @references ||= ::Concurrent::ThreadLocalVar.new({})
+      @references.value
+    end
+
+    def references=(value)
+      references.clear
+      @references.value = value
+    end
+
+    def loaded_isolation_keys
+      @loaded_isolation_keys ||= ::Concurrent::ThreadLocalVar.new({})
+      @loaded_isolation_keys.value
     end
 
     # Empty the store of any references and loaded isolation keys.

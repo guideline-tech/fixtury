@@ -9,9 +9,9 @@ require "active_support/core_ext/object/blank"
 
 require "fixtury/version"
 
+require "fixtury/configuration"
 require "fixtury/definition_executor"
 require "fixtury/dependency"
-require "fixtury/dependency_manager"
 require "fixtury/dependency_store"
 require "fixtury/errors"
 require "fixtury/hooks"
@@ -38,6 +38,17 @@ module Fixtury
   }.freeze
 
   DEFAULT_LOG_LEVEL = LOG_LEVEL_INFO
+
+  def self.configuration
+    @configuration ||= ::Fixtury::Configuration.new
+    yield @configuration if block_given?
+    @configuration
+  end
+
+  def self.configure(&block)
+    self.configuration(&block)
+  end
+
 
   # Shortcut for opening the top level schema.
   def self.define(&block)
@@ -69,21 +80,8 @@ module Fixtury
     @store = store
   end
 
-  def self.dependency_manager
-    @dependency_manager ||= ::Fixtury::DependencyManager.new
-  end
-
-  def self.log_level
-    return @log_level if @log_level
-
-    @log_level = ENV["FIXTURY_LOG_LEVEL"]
-    @log_level ||= DEFAULT_LOG_LEVEL
-    @log_level = @log_level.to_s.to_sym
-    @log_level
-  end
-
   def self.log(text = nil, level: LOG_LEVEL_DEBUG, name: nil, newline: true)
-    desired_level = LOG_LEVELS.fetch(log_level) { DEFAULT_LOG_LEVEL }
+    desired_level = LOG_LEVELS.fetch(configuration.log_level) { DEFAULT_LOG_LEVEL }
     return if desired_level == LOG_LEVEL_NONE
 
     message_level = LOG_LEVELS.fetch(level) { LOG_LEVEL_DEBUG }
