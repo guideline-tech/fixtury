@@ -27,5 +27,10 @@ module Fixtury
       assert_equal "Relative Earth", dep_store.earth
     end
 
+    def test_the_store_will_back_up_to_searching_if_strict_dependencies_is_disabled
+      ::Fixtury.configuration.stubs(:strict_dependencies).returns(false)
+      assert_equal "Town, Earth", dep_store.get("./absolute_town")
+    end
+
   end
 end

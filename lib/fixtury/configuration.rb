@@ -6,12 +6,13 @@ module Fixtury
   class Configuration
 
     attr_reader :fixture_files, :dependency_files, :locator_backend
-    attr_accessor :filepath, :reference_ttl
+    attr_accessor :filepath, :reference_ttl, :strict_dependencies
 
     def initialize
       @fixture_files = Set.new
       @dependency_files = Set.new
       @locator_backend = :memory
+      @strict_dependencies = true
     end
 
     def log_level

@@ -14,16 +14,27 @@ module Fixtury
       "#{self.class}(definition: #{definition.pathname.inspect}, dependencies: #{definition.dependencies.keys.inspect})"
     end
 
-    # Returns the value of the dependency with the given key
+    # Returns the value of the dependency with the given key. If the key is not present in the dependencies
+    # and strict_dependencies is enabled, an error will be raised. If strict_dependencies is not enabled
+    # the store will receive the search term directly.
     #
-    # @param key [String, Symbol] the accessor of the dependency
+    # @param search [String, Symbol] the accessor of the dependency
     # @return [Object] the value of the dependency
-    # @raise [Fixtury::Errors::UnknownDependencyError] if the definition does not contain the provided dependency
-    def get(key)
-      dep = definition.dependencies.fetch(key.to_s) do
-        raise Errors::UnknownDependencyError.new(definition, key)
+    # @raise [Fixtury::Errors::UnknownDependencyError] if the definition does not contain the provided dependency and strict_dependencies is enabled
+    def get(search)
+      dep = definition.dependencies[search.to_s]
+
+      if dep.nil? && Fixtury.configuration.strict_dependencies
+        raise Errors::UnknownDependencyError.new(definition, search)
       end
-      store.get(dep.definition.pathname)
+
+      if dep
+        store.get(dep.definition.pathname)
+      else
+        store.with_relative_schema(definition.parent) do
+          store.get(search)
+        end
+      end
     end
     alias [] get
 

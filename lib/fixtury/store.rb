@@ -72,7 +72,7 @@ module Fixtury
     # @return [void]
     def load_all(schema = self.schema)
       schema.children.each_value do |item|
-        get(item.name) if item.acts_like?(:fixtury_definition)
+        get(item.pathname) if item.acts_like?(:fixtury_definition)
         load_all(item) if item.acts_like?(:fixtury_schema)
       end
     end

@@ -80,15 +80,21 @@ module Fixtury
   end
 
   # Require each schema file to ensure that all definitions are loaded.
-  def self.load_all_schemas
+  def self.load_all_schemas(mechanism = :require)
     configuration.fixture_files.each do |filepath|
-      require filepath
+      if mechanism == :require
+        require filepath
+      elsif mechanism == :load
+        load filepath
+      else
+        raise ArgumentError, "unknown load mechanism: #{mechanism}"
+      end
     end
   end
 
   # Ensure all definitions are loaded and then load all known fixtures.
-  def self.load_all_fixtures
-    load_all_schemas
+  def self.load_all_fixtures(...)
+    load_all_schemas(...)
     store.load_all
   end
 
