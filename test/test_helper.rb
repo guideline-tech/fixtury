@@ -13,8 +13,8 @@ class Test < Minitest::Test
   extend ::Support::Db::Helpers
 
   def before_setup
-    ::Fixtury.schema = ::Fixtury::Schema.new
-    ::Fixtury.store = ::Fixtury::Store.new
+    ::Fixtury.schema.reset
+    ::Fixtury.store.reset
     super
   end
 

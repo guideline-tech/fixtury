@@ -14,15 +14,9 @@ module Fixtury
     attr_reader :schema
     attr_reader :ttl
 
-    # Create a new store.
-    # @param locator [Fixtury::Locator, Symbol, NilClass] (see Fixtury::Locator#from)
-    # @param ttl [Integer, NilClass] The time-to-live for references in seconds.
-    # @param schema [Fixtury::Schema, NilClass] The schema to use for fixture definitions, defaults to the global schema.
-    # @return [Fixtury::Store]
-    def initialize(locator: nil, ttl: nil, schema: nil)
+    def initialize(schema: nil)
       @schema = schema || ::Fixtury.schema
-      @locator = ::Fixtury::Locator.from(locator)
-      @ttl = ttl&.to_i
+      @locator = ::Fixtury::Locator.from(::Fixtury.configuration.locator_backend)
       self.references = ::Fixtury.configuration.stored_references
     end
 
@@ -126,9 +120,10 @@ module Fixtury
       raise ArgumentError, "#{search.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
 
       pathname = dfn.pathname
+      isokey = dfn.isolation_key
 
       # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
-      maybe_load_isolation_dependencies(dfn.isolation_key)
+      maybe_load_isolation_dependencies(isokey)
 
       # See if we already hold a reference to the fixture.
       ref = references[pathname]
@@ -173,7 +168,13 @@ module Fixtury
         log("store #{pathname}", level: LOG_LEVEL_DEBUG)
 
         locator_key = locator.dump(value, context: pathname)
-        references[pathname] = ::Fixtury::Reference.new(pathname, locator_key)
+        reference_opts = {}
+        reference_opts[:isolation_key] = isokey unless isokey == pathname
+        references[pathname] = ::Fixtury::Reference.new(
+          pathname,
+          locator_key,
+          **reference_opts
+        )
       end
 
       value
@@ -241,6 +242,10 @@ module Fixtury
     # Log a contextual message using Fixtury.log
     def log(msg, level:)
       ::Fixtury.log(msg, level: level, name: "store")
+    end
+
+    def ttl
+      ::Fixtury.configuration.reference_ttl&.to_i
     end
 
   end

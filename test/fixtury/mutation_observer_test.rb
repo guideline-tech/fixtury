@@ -1,6 +1,10 @@
 require "test_helper"
 require "fixtury/mutation_observer"
 
+class ActiveRecord::Base
+  prepend Fixtury::MutationObserver::ActiveRecordHooks
+end
+
 module Fixtury
   class MutationObserverTest < ::Test
 
@@ -23,7 +27,7 @@ module Fixtury
         end
       end
 
-      ::Fixtury.store = ::Fixtury::Store.new(locator: locator)
+      ::Fixtury.store.stubs(:locator).returns(locator)
     end
 
     def test_the_module_should_be_prepended_to_ar_base_automatically

@@ -13,6 +13,10 @@ module Fixtury
       super(name: name, **options)
     end
 
+    def reset
+      children.clear
+    end
+
     # Object#acts_like? adherence.
     def acts_like_fixtury_schema?
       true

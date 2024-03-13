@@ -4,7 +4,7 @@ require "fixtury"
 require "active_support/core_ext/class/attribute"
 
 module Fixtury
-  # TestHooks is a module designed to hook into a Minitest test case, and
+  # MinitestHooks is a module designed to hook into a Minitest test case, and
   # provide a way to load fixtures into the test case. It is designed to be
   # prepended into the test case class, and will automatically load fixtures
   # before the test case is setup, and rollback any changes after the test
@@ -15,7 +15,7 @@ module Fixtury
   #
   # @example
   #   class MyTest < Minitest::Test
-  #     prepend Fixtury::TestHooks
+  #     prepend Fixtury::MinitestHooks
   #
   #     fixtury "user"
   #     fixtury "post"
@@ -38,7 +38,7 @@ module Fixtury
   #   # using the last segment of the fixture's pathname.
   #
   #   class MyTest < Minitest::Test
-  #     prepend Fixtury::TestHooks
+  #     prepend Fixtury::MinitestHooks
   #
   #     fixtury "/my/user_record", as: :user
   #
@@ -52,7 +52,7 @@ module Fixtury
   # The setup and teardown attempt to manage a transaction for each registered database
   # connection if ActiveRecord::Base is present. If use_transaction_tests or use_transactional_fixtures
   # are present, those settings will be respected. If neither are present, a transaction will be used.
-  module TestHooks
+  module MinitestHooks
 
     def self.prepended(klass)
       klass.class_attribute :fixtury_dependencies

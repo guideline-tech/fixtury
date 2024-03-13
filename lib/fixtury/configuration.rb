@@ -5,12 +5,13 @@ module Fixtury
   # generation.
   class Configuration
 
-    attr_reader :filepath, :fixture_files, :dependency_files
+    attr_reader :fixture_files, :dependency_files, :locator_backend
+    attr_accessor :filepath, :reference_ttl
 
     def initialize
-      @filepath = nil
       @fixture_files = Set.new
       @dependency_files = Set.new
+      @locator_backend = :memory
     end
 
     def log_level
@@ -22,17 +23,17 @@ module Fixtury
       @log_level
     end
 
+    def log_level=(level)
+      @log_level = level.to_s.to_sym
+    end
+
+    def locator_backend=(backend)
+      @locator_backend = backend.to_sym
+    end
+
     # Delete the storage file if it exists.
     def reset
       File.delete(filepath) if filepath && File.file?(filepath)
-    end
-
-    # Set the location of the storage file. The storage file will maintain
-    # checksums of all tracked files and serialized references to fixtures.
-    #
-    # @param path [String] The path to the storage file.
-    def filepath=(path)
-      @filepath = path.to_s
     end
 
     # Add a file or glob pattern to the list of fixture files.
@@ -69,20 +70,26 @@ module Fixtury
       File.binwrite(filepath, file_data.to_yaml)
     end
 
-    def files_changed?
-      return true if stored_data.nil?
+    def changes
+      return "new: #{filepath}" if stored_data.nil?
 
       stored_checksums = (stored_data[:dependencies] || {})
       seen_filepaths = []
       calculate_checksums do |filepath, checksum|
         # Early return if the checksums don't match
-        return true unless stored_checksums[filepath] == checksum
+        return "change: #{filepath}" unless stored_checksums[filepath] == checksum
 
         seen_filepaths << filepath
       end
 
       # If we have a new file or a file has been removed, we need to report a change.
-      seen_filepaths.sort != stored_checksums.keys.sort
+      new_files = seen_filepaths - stored_checksums.keys
+      return "added: #{new_files.inspect}" if new_files.any?
+
+      removed_files = stored_checksums.keys - seen_filepaths
+      return "removed: #{removed_files.inspect}" if removed_files.any?
+
+      nil
     end
 
 

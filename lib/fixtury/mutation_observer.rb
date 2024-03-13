@@ -135,6 +135,3 @@ end
 ::Fixtury.hooks.around(:execution) do |execution, &block|
   ::Fixtury::MutationObserver.observe(execution, &block)
 end
-
-# If/when activerecord loads, prepend the hooks module to ActiveRecord::Base
-ActiveSupport.on_load(:active_record) { prepend Fixtury::MutationObserver::ActiveRecordHooks }

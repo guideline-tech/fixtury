@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fixtury (1.0.0.beta3)
+    fixtury (1.0.0.beta4)
 
 GEM
   remote: https://rubygems.org/

@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "fixtury/test_hooks"
+require "fixtury/minitest_hooks"
 
 module Fixtury
-  class TestHooksTest < ::Test
+  class MinitestHooksTest < ::Test
 
     uses_db
 
@@ -22,7 +22,7 @@ module Fixtury
 
     def test_dependencies_are_recorded
       klass = Class.new do
-        prepend ::Fixtury::TestHooks
+        prepend ::Fixtury::MinitestHooks
 
         fixtury "global/foo", as: false
         fixtury "global/bar", as: "barrr"
@@ -36,7 +36,7 @@ module Fixtury
 
     def test_accessors_are_created
       klass = Class.new do
-        prepend ::Fixtury::TestHooks
+        prepend ::Fixtury::MinitestHooks
 
         fixtury "/global/foo", as: false
         fixtury "/global/bar", as: "barrr"
@@ -52,7 +52,7 @@ module Fixtury
 
     def test_references_are_built_relative_to_root
       klass = Class.new do
-        prepend ::Fixtury::TestHooks
+        prepend ::Fixtury::MinitestHooks
 
         fixtury "/foo", as: false
         fixtury "/global/bar", as: "barrr"
@@ -62,7 +62,7 @@ module Fixtury
     def test_references_to_unrecognized_fixtures_blow_up
       assert_raises Fixtury::Errors::SchemaNodeNotDefinedError do
         Class.new do
-          prepend ::Fixtury::TestHooks
+          prepend ::Fixtury::MinitestHooks
 
           fixtury "/doesnt/exist"
         end
@@ -77,7 +77,7 @@ module Fixtury
       ::Fixtury.expects(:log).with("preloading \"/global/bar\"", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)
 
       klass = Class.new(::Minitest::Test) do
-        prepend ::Fixtury::TestHooks
+        prepend ::Fixtury::MinitestHooks
 
         fixtury "/global/foo", as: false
         fixtury "/global/bar", as: "barrr"

@@ -17,7 +17,7 @@ module Fixtury
 
     attr_reader :name, :locator_key, :created_at, :options
 
-    def initialize(name, locator_key, options = {})
+    def initialize(name, locator_key, **options)
       @name = name
       @locator_key = locator_key
       @created_at = Time.now.to_i

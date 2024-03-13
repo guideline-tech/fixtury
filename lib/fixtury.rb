@@ -67,17 +67,16 @@ module Fixtury
     @schema ||= ::Fixtury::Schema.new
   end
 
-  def self.schema=(schema)
-    @schema = schema
-  end
-
   # Default store for fixtures. This is a shared store that can be used across the application.
   def self.store
     @store ||= ::Fixtury::Store.new
   end
 
-  def self.store=(store)
-    @store = store
+  # Load all known fixture files configured in Configuration. Reset the store references if
+  # a dependency file has changed.
+  def self.start
+    load_all_schemas
+    reset_if_changed
   end
 
   # Require each schema file to ensure that all definitions are loaded.
@@ -90,20 +89,20 @@ module Fixtury
   # Ensure all definitions are loaded and then load all known fixtures.
   def self.load_all_fixtures
     load_all_schemas
-    Fixtury.store.load_all
+    store.load_all
   end
 
-  # Remove all references from the active store and reset the dependency file
+  # Remove all references from the active store and reset the dependency file.
   def self.reset
-    log("resetting", level: LOG_LEVEL_INFO)
-
     configuration.reset
     store.reset
   end
 
   # Perform a reset if any of the tracked files have changed.
   def self.reset_if_changed
-    if configuration.files_changed?
+    changes = configuration.changes
+    if changes
+      log("changes found, resetting | #{changes}", level: LOG_LEVEL_INFO)
       reset
     else
       log("no changes, skipping reset", level: LOG_LEVEL_INFO)
@@ -124,6 +123,7 @@ module Fixtury
     msg << " #{yield}" if block_given?
     msg << "\n" if newline
 
+    # TODO: logger
     print msg
     msg
   end
