@@ -11,23 +11,18 @@ module Fixtury
 
     def test_it_allows_fixtures_to_be_defined
       schema.define do
-        fixture :foo do
-          "foo"
-        end
-
-        fixture :bar do
-          "bar"
-        end
+        fixture(:foo) { "foo" }
+        fixture(:bar) { "bar" }
       end
 
-      foo_def = schema.get_definition!(:foo)
-      bar_def = schema.get_definition!(:bar)
+      foo_def = schema.get!(:foo)
+      bar_def = schema.get!(:bar)
 
       assert_equal "foo", foo_def.call
       assert_equal "bar", bar_def.call
     end
 
-    def test_schemas_can_be_used
+    def test_namespaces_can_be_used
       schema.define do
         namespace "bar" do
           fixture "baz" do
@@ -36,12 +31,11 @@ module Fixtury
         end
       end
 
-      barbaz_def = schema.get_definition!("bar/baz")
-
+      barbaz_def = schema.get!("bar/baz")
       assert_equal "barbaz", barbaz_def.call
     end
 
-    def test_schemas_can_be_used_twice
+    def test_namespaces_can_be_reopened
       schema.define do
         namespace "bar" do
           fixture "baz" do
@@ -56,8 +50,8 @@ module Fixtury
         end
       end
 
-      barbaz_def = schema.get_definition!("bar/baz")
-      barqux_def = schema.get_definition!("bar/qux")
+      barbaz_def = schema.get!("bar/baz")
+      barqux_def = schema.get!("bar/qux")
 
       assert_equal "barbaz", barbaz_def.call
       assert_equal "barqux", barqux_def.call
@@ -74,7 +68,7 @@ module Fixtury
         end
       end
 
-      foobarbaz_def = schema.get_definition!("foo/bar/baz")
+      foobarbaz_def = schema.get!("foo/bar/baz")
       assert_equal "foobarbaz", foobarbaz_def.call
     end
 
@@ -91,7 +85,7 @@ module Fixtury
         end
       end
 
-      assert_equal 2, schema.definitions.size
+      assert_equal 2, schema.children.size
     end
 
     def test_the_same_name_cannot_be_used_twice
@@ -105,9 +99,8 @@ module Fixtury
 
       do_it.call
 
-      assert_equal 1, schema.definitions.size
-
-      assert_raises Fixtury::Errors::AlreadyDefinedError do
+      assert_equal 1, schema.children.size
+      assert_raises Errors::AlreadyDefinedError do
         do_it.call
       end
     end
@@ -124,14 +117,14 @@ module Fixtury
         end
       end
 
-      assert_raises Fixtury::Errors::AlreadyDefinedError do
+      assert_raises Errors::AlreadyDefinedError do
         schema.define do
           namespace "foo" do
           end
         end
       end
 
-      assert_raises Fixtury::Errors::AlreadyDefinedError do
+      assert_raises Errors::AlreadyDefinedError do
         schema.define do
           fixture "bar" do
           end
@@ -152,162 +145,11 @@ module Fixtury
         end
       end
 
-      foo_def = schema.get_definition!("foo")
-      barfoo_def = schema.get_definition!("bar/foo")
+      foo_def = schema.get!("foo")
+      barfoo_def = schema.get!("bar/foo")
 
       assert_equal "foo", foo_def.call
       assert_equal "bar/foo", barfoo_def.call
-    end
-
-    def test_other_schemas_can_be_merged
-      schema.define do
-        namespace "foo" do
-          fixture "nesteda" do
-            "foo/nesteda"
-          end
-        end
-
-        fixture "topa" do
-          "topa"
-        end
-      end
-
-      other_schema.define do
-        namespace "foo" do
-          fixture "nestedb" do
-            "foo/nestedb"
-          end
-        end
-
-        fixture "topb" do
-          "topb"
-        end
-      end
-
-      o = other_schema
-
-      schema.define do
-        merge o
-      end
-
-      assert_equal 1, schema.children.size
-      assert_equal 2, schema.definitions.size
-
-      assert_equal 1, other_schema.children.size
-      assert_equal 1, other_schema.definitions.size
-
-      original_topa_def = schema.get_definition!("topa")
-      original_topb_def = other_schema.get_definition!("topb")
-      merged_topb_def = schema.get_definition!("topb")
-
-      original_nesteda_def = schema.get_definition!("foo/nesteda")
-      original_nestedb_def = other_schema.get_definition!("foo/nestedb")
-      merged_nestedb_def = schema.get_definition!("foo/nestedb")
-
-      assert_equal "topa", original_topa_def.call
-      assert_equal "topb", original_topb_def.call
-      assert_equal "topb", merged_topb_def.call
-
-      assert_equal "foo/nesteda", original_nesteda_def.call
-      assert_equal "foo/nestedb", original_nestedb_def.call
-      assert_equal "foo/nestedb", merged_nestedb_def.call
-
-      refute_equal original_topb_def.object_id, merged_topb_def.object_id
-      refute_equal original_nestedb_def.object_id, merged_nestedb_def.object_id
-    end
-
-    def test_fixtures_can_be_enhanced
-      o = other_schema
-      o.define do
-        fixture "foo" do
-          "foo"
-        end
-      end
-
-      schema.define do
-        merge o
-
-        enhance "foo" do |e|
-          e.value * 2
-        end
-      end
-
-      foofoodef = schema.get_definition!("foo")
-
-      assert_equal true, foofoodef.enhanced?
-      assert_equal "foofoo", foofoodef.call
-
-      foodef = o.get_definition!("foo")
-      assert_equal false, foodef.enhanced?
-      assert_equal "foo", foodef.call
-    end
-
-    def test_schema_cannot_be_modified_once_frozen
-      schema.define do
-        fixture "foo" do
-          "foo"
-        end
-      end
-
-      schema.freeze!
-
-      assert_raises ::Fixtury::Errors::SchemaFrozenError do
-        schema.define{}
-      end
-
-      assert_raises ::Fixtury::Errors::SchemaFrozenError do
-        schema.fixture("bar"){}
-      end
-
-      assert_raises ::Fixtury::Errors::SchemaFrozenError do
-        schema.enhance("foo"){}
-      end
-    end
-
-    def test_around_fixture_hook_is_provided_on_all_fixture_definition_calls
-      schema.around_fixture do |_exec, dfn|
-        value = dfn.call
-        value * 2
-      end
-
-      schema.define do
-        fixture "foo" do
-          "Foo"
-        end
-      end
-
-      dfn = schema.get_definition!("foo")
-      assert_equal "FooFoo", dfn.call
-    end
-
-    def test_options_are_merged
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      schema.define do
-        namespace "thechild", bar: "bar"
-      end
-
-      assert_equal({ foo: "foo", bar: "bar" }, schema.children["thechild"].options)
-    end
-
-    def test_conflicting_options_raise
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      # doesn't raise because the value is the same
-      schema.define do
-        namespace "thechild", foo: "foo"
-      end
-
-      # raises because a new value is encountered
-      assert_raises ::Fixtury::Errors::OptionCollisionError do
-        schema.define do
-          namespace "thechild", foo: "bar"
-        end
-      end
     end
 
   end

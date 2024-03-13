@@ -1,77 +1,71 @@
 # frozen_string_literal: true
 
+require "benchmark"
+
 module Fixtury
+  # A container that manages the execution of a definition in the context of a store.
   class DefinitionExecutor
 
-    attr_reader :value, :execution_type, :definition, :store, :execution_context
+    class Output
 
-    def initialize(store: nil, execution_context: nil, definition:)
-      @store = store
-      @definition = definition
-      @execution_context = execution_context
-      @execution_type = nil
-      @value = nil
-    end
+      attr_accessor :value, :metadata
 
-    def __call
-      maybe_set_store_context do
-        provide_schema_hooks do
-          run_callable(callable: definition.callable, type: :definition)
-          definition.enhancements.each do |e|
-            run_callable(callable: e, type: :enhancement)
-          end
-        end
+      def initialize
+        @value = nil
+        @metadata = {}
       end
 
-      value
     end
 
-    def get(name)
-      raise ArgumentError, "A store is required for #{definition.name}" unless store
+    attr_reader :output, :definition, :store
 
-      store.get(name, execution_context: execution_context)
-    end
-    alias [] get
-
-    def method_missing(method_name, *args, &block)
-      return super unless execution_context
-
-      execution_context.send(method_name, *args, &block)
+    def initialize(store: nil, definition:)
+      @store = store
+      @definition = definition
+      @output = Output.new
     end
 
-    def respond_to_missing?(method_name)
-      return super unless execution_context
-
-      execution_context.respond_to?(method_name, true)
+    def call
+      run_definition
+      output
     end
 
     private
 
-    def run_callable(callable:, type:)
-      @execution_type = type
+    # If the callable has a positive arity we generate a DependencyStore
+    # and yield it to the callable. Otherwise we just instance_eval the callable.
+    # We wrap the actual execution of the definition with a hook for observation.
+    def run_definition
+      callable = definition.callable
 
-      @value = if callable.arity.positive?
-        instance_exec(self, &callable)
+      if callable.arity.positive?
+        deps = build_dependency_store
+        around_execution do
+          instance_exec(deps, &callable)
+        end
       else
-        instance_eval(&callable)
+        around_execution do
+          instance_eval(&callable)
+        end
+      end
+    rescue Errors::Base
+      raise
+    rescue => e
+      raise Errors::DefinitionExecutionError.new(definition.pathname, e)
+    end
+
+    def around_execution(&block)
+      measure_timing do
+        @output.value = ::Fixtury.hooks.call(:execution, self, &block)
       end
     end
 
-    def maybe_set_store_context
-      return yield unless store
-
-      store.with_relative_schema(definition.schema) do
-        yield
-      end
+    def measure_timing(&block)
+      @output.metadata[:duration] = Benchmark.realtime(&block)
     end
 
-    def provide_schema_hooks
-      return yield unless definition.schema
-
-      @value = definition.schema.around_fixture_hook(self) do
-        yield
-        value
-      end
+    def build_dependency_store
+      DependencyStore.new(definition: definition, store: store)
     end
 
   end
