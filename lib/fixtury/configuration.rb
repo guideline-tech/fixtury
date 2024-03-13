@@ -69,6 +69,23 @@ module Fixtury
       File.binwrite(filepath, file_data.to_yaml)
     end
 
+    def files_changed?
+      return true if stored_data.nil?
+
+      stored_checksums = (stored_data[:dependencies] || {})
+      seen_filepaths = []
+      calculate_checksums do |filepath, checksum|
+        # Early return if the checksums don't match
+        return true unless stored_checksums[filepath] == checksum
+
+        seen_filepaths << filepath
+      end
+
+      # If we have a new file or a file has been removed, we need to report a change.
+      seen_filepaths.sort != stored_checksums.keys.sort
+    end
+
+
     private
 
     def file_data
@@ -88,22 +105,6 @@ module Fixtury
       return nil unless File.file?(filepath)
 
       YAML.unsafe_load_file(filepath)
-    end
-
-    def files_changed?
-      return true if stored_data.nil?
-
-      stored_checksums = (stored_data[:dependencies] || {})
-      seen_filepaths = []
-      calculate_checksums do |filepath, checksum|
-        # Early return if the checksums don't match
-        return true unless stored_checksums[filepath] == checksum
-
-        seen_filepaths << filepath
-      end
-
-      # If we have a new file or a file has been removed, we need to report a change.
-      seen_filepaths.sort != stored_checksums.keys.sort
     end
 
     def calculate_checksums(&block)
