@@ -22,21 +22,9 @@ module Fixtury
       @log_level
     end
 
-    # Remove all references from teh active store and reset the dependency file
+    # Delete the storage file if it exists.
     def reset
-      Fixtury.log("resetting", name: "dependencies", level: ::Fixtury::LOG_LEVEL_INFO)
-
       File.delete(filepath) if filepath && File.file?(filepath)
-      Fixtury.store.reset
-    end
-
-    # Perform a reset if any of the tracked files have changed.
-    def reset_if_changed
-      if files_changed?
-        reset
-      else
-        Fixtury.log("no changes, skipping reset", name: "dependencies", level: ::Fixtury::LOG_LEVEL_INFO)
-      end
     end
 
     # Set the location of the storage file. The storage file will maintain
@@ -71,19 +59,6 @@ module Fixtury
       return {} if stored_data.nil?
 
       stored_data[:references] || {}
-    end
-
-    # Require each schema file to ensure that all definitions are loaded.
-    def load_all_schemas
-      fixture_files.each do |filepath|
-        require filepath
-      end
-    end
-
-    # Ensure all definitions are loaded and then load all known fixtures.
-    def load_all_fixtures
-      load_all_schemas
-      Fixtury.store.load_all
     end
 
     # Dump the current state of the dependency manager to the storage file.
