@@ -94,11 +94,6 @@ module Fixtury
 
           pathnames.each do |pathname|
             method_name = (accessor_option == true ? pathname.split("/").last : accessor_option).to_sym
-
-            if method_defined?(method_name)
-              raise ArgumentError, "A method by the name of #{method_name} already exists in #{self}"
-            end
-
             ivar = :"@fixtury_#{method_name}"
 
             class_eval <<-EV, __FILE__, __LINE__ + 1
