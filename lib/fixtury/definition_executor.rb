@@ -1,20 +1,33 @@
 # frozen_string_literal: true
 
+require "benchmark"
+
 module Fixtury
   # A container that manages the execution of a definition in the context of a store.
   class DefinitionExecutor
 
-    attr_reader :value, :definition, :store
+    class Output
+
+      attr_accessor :value, :metadata
+
+      def initialize
+        @value = nil
+        @metadata = {}
+      end
+
+    end
+
+    attr_reader :output, :definition, :store
 
     def initialize(store: nil, definition:)
       @store = store
       @definition = definition
-      @value = nil
+      @output = Output.new
     end
 
     def call
       run_definition
-      value
+      output
     end
 
     private
@@ -25,13 +38,13 @@ module Fixtury
     def run_definition
       callable = definition.callable
 
-      @value = if callable.arity.positive?
+      if callable.arity.positive?
         deps = build_dependency_store
-        ::Fixtury.hooks.call(:execution, self) do
+        around_execution do
           instance_exec(deps, &callable)
         end
       else
-        ::Fixtury.hooks.call(:execution, self) do
+        around_execution do
           instance_eval(&callable)
         end
       end
@@ -39,6 +52,16 @@ module Fixtury
       raise
     rescue => e
       raise Errors::DefinitionExecutionError.new(definition.pathname, e)
+    end
+
+    def around_execution(&block)
+      measure_timing do
+        @output.value = ::Fixtury.hooks.call(:execution, self, &block)
+      end
+    end
+
+    def measure_timing(&block)
+      @output.metadata[:duration] = Benchmark.realtime(&block)
     end
 
     def build_dependency_store

@@ -15,13 +15,14 @@ module Fixtury
       new(name, HOLDER_KEY)
     end
 
-    attr_reader :name, :locator_key, :created_at, :options
+    attr_reader :name, :locator_key, :created_at, :metadata
+    alias options metadata # backwards compatibility
 
-    def initialize(name, locator_key, **options)
+    def initialize(name, locator_key, **metadata)
       @name = name
       @locator_key = locator_key
       @created_at = Time.now.to_i
-      @options = options
+      @metadata = metadata
     end
 
     def holder?

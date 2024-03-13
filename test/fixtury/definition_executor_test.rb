@@ -27,5 +27,15 @@ module Fixtury
       executor.call
     end
 
+    def test_return_value_is_an_output_object
+      dfn = ::Fixtury::Definition.new(name: "foo") { |s| s.get("thing") }
+      executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
+      Fixtury::DependencyStore.any_instance.expects(:get).with("thing").once.returns("foobar")
+      output = executor.call
+      assert_instance_of ::Fixtury::DefinitionExecutor::Output, output
+      assert_equal "foobar", output.value
+      assert output.metadata.key?(:duration)
+    end
+
   end
 end

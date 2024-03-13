@@ -37,7 +37,9 @@ module Fixtury
 
     def test_a_store_returns_an_existing_reference_rather_than_reinvoking_the_definition
       store = ::Fixtury::Store.new(schema: schema)
-      Fixtury::DefinitionExecutor.any_instance.expects(:call).once.returns("baz")
+      output = DefinitionExecutor::Output.new
+      output.stubs(:value).returns("baz")
+      Fixtury::DefinitionExecutor.any_instance.expects(:call).once.returns(output)
 
       assert_equal "baz", store["foo"]
       assert_equal "baz", store["foo"]
@@ -68,6 +70,24 @@ module Fixtury
       refute_equal ref.created_at, new_ref.created_at
     end
 
+    def test_generated_references_hold_metadata
+      dfn = schema.get("foo")
+      dfn.stubs(:isolation_key).returns("some_isolation_key")
+      store = ::Fixtury::Store.new(schema: schema)
+      output = DefinitionExecutor::Output.new
+      output.stubs(:value).returns("baz")
+      output.stubs(:metadata).returns({ meta_foo: "metabar" })
+      Fixtury::DefinitionExecutor.any_instance.expects(:call).once.returns(output)
+
+      store.get("foo")
+      ref = store.references[dfn.pathname]
+
+      assert_equal({
+        isolation_key: "some_isolation_key",
+        meta_foo: "metabar"
+      }, ref.metadata)
+    end
+
     def test_a_store_doesnt_allow_circular_references
       store = ::Fixtury::Store.new(schema: circular_schema)
       assert_raises Errors::CircularDependencyError do
@@ -83,7 +103,9 @@ module Fixtury
 
     def test_store_reloads_value_if_locator_cannot_find
       store = ::Fixtury::Store.new(schema: schema)
-      Fixtury::DefinitionExecutor.any_instance.expects(:call).twice.returns("baz")
+      output = DefinitionExecutor::Output.new
+      output.stubs(:value).returns("baz")
+      Fixtury::DefinitionExecutor.any_instance.expects(:call).twice.returns(output)
 
       assert_equal "baz", store["foo"]
       store.locator.stubs(:load).returns(nil)

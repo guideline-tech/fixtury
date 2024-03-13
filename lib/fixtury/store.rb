@@ -159,7 +159,8 @@ module Fixtury
 
         begin
           executor = ::Fixtury::DefinitionExecutor.new(store: self, definition: dfn)
-          value = executor.call
+          output = executor.call
+          value = output.value
         rescue StandardError
           clear_reference(pathname)
           raise
@@ -167,8 +168,9 @@ module Fixtury
 
         log("store #{pathname}", level: LOG_LEVEL_DEBUG)
 
-        locator_key = locator.dump(value, context: pathname)
+        locator_key = locator.dump(output.value, context: pathname)
         reference_opts = {}
+        reference_opts.merge!(output.metadata)
         reference_opts[:isolation_key] = isokey unless isokey == pathname
         references[pathname] = ::Fixtury::Reference.new(
           pathname,
