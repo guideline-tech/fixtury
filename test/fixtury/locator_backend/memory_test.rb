@@ -19,8 +19,8 @@ module Fixtury
         a_ref = loc.dump(a)
         b_ref = loc.dump(b)
 
-        assert_equal "fixtury-oid-#{a.object_id}", a_ref
-        assert_equal "fixtury-oid-#{b.object_id}", b_ref
+        assert_equal "fixtury-oid-#{Process.pid}-#{a.object_id}", a_ref
+        assert_equal "fixtury-oid-#{Process.pid}-#{b.object_id}", b_ref
 
         a2 = loc.load(a_ref)
         assert_equal a2.object_id, a.object_id
@@ -30,7 +30,7 @@ module Fixtury
       def test_it_fetches_from_objectspace
         loc = ::Fixtury::LocatorBackend::Memory.new
         a = +"foo"
-        assert_equal a, loc.load("fixtury-oid-#{a.object_id}")
+        assert_equal a, loc.load("fixtury-oid-#{Process.pid}-#{a.object_id}")
       end
 
     end

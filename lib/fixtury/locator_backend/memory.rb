@@ -8,27 +8,28 @@ module Fixtury
 
       include ::Fixtury::LocatorBackend::Common
 
-      MATCHER = /^fixtury-oid-(?<object_id>[\d]+)$/.freeze
+      MATCHER = /^fixtury-oid-(?<process_id>[\d]+)-(?<object_id>[\d]+)$/.freeze
 
-      def recognized_reference?(ref)
-        ref.is_a?(String) && MATCHER.match?(ref)
+      def recognizable_key?(locator_value)
+        locator_value.is_a?(String) && MATCHER.match?(locator_value)
       end
 
-      def recognized_value?(_val)
+      def recognizable_value?(_stored_value)
         true
       end
 
-      def load_recognized_reference(ref)
-        match = MATCHER.match(ref)
+      def load_reference(locator_value)
+        match = MATCHER.match(locator_value)
         return nil unless match
+        return nil unless match[:process_id].to_i == Process.pid
 
         ::ObjectSpace._id2ref(match[:object_id].to_i)
       rescue RangeError
         nil
       end
 
-      def dump_recognized_value(value)
-        "fixtury-oid-#{value.object_id}"
+      def dump_value(stored_value)
+        "fixtury-oid-#{Process.pid}-#{stored_value.object_id}"
       end
 
     end

@@ -5,21 +5,25 @@ require "fixtury"
 
 require "byebug"
 require "minitest/autorun"
-require "minitest/reporters"
-
-Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new]
+require "support/db/helpers"
 
 class Test < Minitest::Test
 
-  extend ::MiniTest::Spec::DSL # for let
+  extend ::Minitest::Spec::DSL # for let
+  extend ::Support::Db::Helpers
 
   def before_setup
-    ::Fixtury.schema.reset!
+    ::Fixtury.schema.reset
+    ::Fixtury.store.reset
     super
+  end
+
+  def load_default_fixtures
+    load "support/fixtures.rb"
   end
 
 end
 
-::MiniTest::Runnable.runnables.delete Test
+::Minitest::Runnable.runnables.delete Test
 
 require "mocha/minitest"

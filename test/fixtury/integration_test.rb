@@ -1,62 +1,16 @@
 # frozen_string_literal: true
 
 require "test_helper"
-require "fixtury/store"
 
 module Fixtury
   class IntegrationTest < ::Test
 
-    let :schema do
-      ::Fixtury.define do
-        fixture "earth" do
-          "Earth"
-        end
-
-        namespace "countries" do
-          fixture "country" do
-            "Country"
-          end
-
-          fixture "reverse_country" do |store|
-            store[:country].reverse
-          end
-
-          fixture "earth" do
-            "Relative Earth"
-          end
-
-          fixture "relative_country" do |store|
-            "#{store[:country]}, #{store[:earth]}"
-          end
-
-          fixture "absolute_country" do |store|
-            "#{store[:country]}, #{store["/earth"]}"
-          end
-
-          namespace "towns" do
-            fixture "unknown_town" do |store|
-              "Town, #{store["./earth"]}"
-            end
-
-            fixture "relative_town" do |store|
-              "Town, #{store["../earth"]}"
-            end
-
-            fixture "absolute_town" do |store|
-              "Town, #{store["/earth"]}"
-            end
-          end
-        end
-      end
-    end
-
-    let :store do
-      ::Fixtury::Store.new
-    end
+    let(:schema) { ::Fixtury.schema }
+    let(:store) { ::Fixtury.store }
 
     def setup
       super
-      schema
+      load_default_fixtures
     end
 
     def test_a_fixtures_can_be_loaded
@@ -76,7 +30,7 @@ module Fixtury
     end
 
     def test_relatives_miss_if_they_dont_exist
-      assert_raises ::Fixtury::Errors::FixtureNotDefinedError do
+      assert_raises Errors::SchemaNodeNotDefinedError do
         store["countries/towns/unknown_town"]
       end
     end

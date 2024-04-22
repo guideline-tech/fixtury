@@ -1,48 +1,77 @@
 # frozen_string_literal: true
 
+require "fixtury/locator_backend/memory"
+
 module Fixtury
+  # Locator is responsible for recognizing, loading, and dumping references.
+  # It is a simple wrapper around a backend that is responsible for the actual work.
+  # The backend is expected to implement the following methods: recognizable_key?, recognized_value?, load_recognized_reference, dump_recognized_value.
   class Locator
 
-    class << self
-
-      attr_accessor :instance
-
-      def instance
-        @instance ||= begin
-          require "fixtury/locator_backend/memory"
-          ::Fixtury::Locator.new(
-            backend: ::Fixtury::LocatorBackend::Memory.new
-          )
+    def self.from(thing)
+      case thing
+      when ::Fixtury::Locator
+        thing
+      when nil
+         ::Fixtury::Locator.new
+      when Symbol
+        begin
+          require "fixtury/locator_backend/#{thing}"
+        rescue LoadError
         end
+        backend = ::Fixtury::LocatorBackend.const_get(thing.to_s.camelize, false).new
+        ::Fixtury::Locator.new(backend: backend)
+      else
+        raise ArgumentError, "Unable to create a locator from #{thing.inspect}"
       end
-
     end
 
     attr_reader :backend
 
-    def initialize(backend:)
+    def initialize(backend: ::Fixtury::LocatorBackend::Memory.new)
       @backend = backend
     end
 
-    def recognize?(ref)
-      raise ArgumentError, "Unable to recognize a nil ref" if ref.nil?
-
-      backend.recognized_reference?(ref)
+    def inspect
+      "#{self.class}(backend: #{backend.class})"
     end
 
-    def load(ref)
-      raise ArgumentError, "Unable to load a nil ref" if ref.nil?
+    # Determine if the provided locator_key is a valid form recognized by the backend.
+    #
+    # @param locator_key [Object] the locator key to check
+    # @return [Boolean] true if the locator key is recognizable by the backend
+    # @raise [ArgumentError] if the locator key is nil
+    def recognizable_key?(locator_key)
+      raise ArgumentError, "Unable to recognize a nil locator value" if locator_key.nil?
 
-      backend.load(ref)
+      backend.recognizable_key?(locator_key)
     end
 
-    def dump(value)
-      raise ArgumentError, "Unable to dump a nil value" if value.nil?
+    # Load the value associated with the provided locator key.
+    #
+    # @param locator_key [Object] the locator key to load
+    # @return [Object] the loaded value
+    # @raise [ArgumentError] if the locator key is nil
+    def load(locator_key)
+      raise ArgumentError, "Unable to load a nil locator value" if locator_key.nil?
 
-      ref = backend.dump(value)
-      raise ArgumentError, "The value resulted in a nil ref" if ref.nil?
+      backend.load(locator_key)
+    end
 
-      ref
+    # Provide the value to the backend to generate a locator key.
+    #
+    # @param stored_value [Object] the value to dump
+    # @param context [String] a string to include in the error message if the value is nil
+    # @return [Object] the locator key
+    # @raise [ArgumentError] if the value is nil
+    # @raise [ArgumentError] if the backend is unable to dump the value
+    def dump(stored_value, context: nil)
+      raise ArgumentError, "Unable to dump a nil value. #{context}" if stored_value.nil?
+
+      locator_key = backend.dump(stored_value)
+      raise ArgumentError, "Dump resulted in a nil locator value. #{context}" if locator_key.nil?
+
+      locator_key
     end
 
   end

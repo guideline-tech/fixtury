@@ -2,6 +2,6 @@
 
 module Fixtury
 
-  VERSION = "0.4.1"
+  VERSION = "1.0.0.beta7"
 
 end

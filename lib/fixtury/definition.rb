@@ -1,52 +1,48 @@
 # frozen_string_literal: true
 
-require "fixtury/definition_executor"
-
 module Fixtury
+  # A class that contains the definition of a fixture. It also maintains a list of it's
+  # dependencies to allow for analysis of the fixture graph.
   class Definition
+    include ::Fixtury::SchemaNode
+    extend ::Forwardable
 
-    attr_reader :name
-    attr_reader :schema
-    alias parent schema
-    attr_reader :options
+    # Initializes a new Definition object.
+    #
+    # @param deps [Array] An array of dependencies.
+    # @param opts [Hash] Additional options for the Definition.
+    # @param block [Proc] A block of code to be executed.
+    def initialize(deps: [], **opts, &block)
+      super(**opts)
 
-    attr_reader :callable
-    attr_reader :enhancements
+      @dependencies = Array(deps).each_with_object({}) do |d, deps|
+        parsed_deps = Dependency.from(parent, d)
+        parsed_deps.each do |dep|
+          existing = deps[dep.accessor]
+          raise ArgumentError, "Accessor #{dep.accessor} is already declared by #{existing.search}" if existing
 
-    def initialize(schema: nil, name:, options: {}, &block)
-      @name = name
-      @schema = schema
+          deps[dep.accessor] = dep
+        end
+      end
+
       @callable = block
-      @options = options
-      @enhancements = []
     end
 
-    def enhance(&block)
-      @enhancements << block
+    # Indicates whether the Definition acts like a Fixtury definition.
+    #
+    # @return [Boolean] `true` if it acts like a Fixtury definition, `false` otherwise.
+    def acts_like_fixtury_definition?
+      true
     end
 
-    def enhanced?
-      @enhancements.any?
-    end
+    # Delegates the `call` method to the `callable` object.
+    def_delegator :callable, :call
 
-    def info
-      {
-        name: name,
-        loc: location_from_callable(callable),
-        enhancements: enhancements.map { |e| location_from_callable(e) },
-      }
-    end
+    # Returns the parent schema of the Definition.
+    #
+    # @return [Object] The parent schema.
+    alias schema parent
 
-    def call(store: nil, execution_context: nil)
-      executor = ::Fixtury::DefinitionExecutor.new(store: store, definition: self, execution_context: execution_context)
-      executor.__call
-    end
-
-    def location_from_callable(callable)
-      return nil unless callable.respond_to?(:source_location)
-
-      callable.source_location.join(":")
-    end
-
+    attr_reader :callable, :dependencies
   end
 end
