@@ -21,4 +21,8 @@ updates:
     open-pull-requests-limit: 20
     insecure-external-code-execution: deny
     commit-message:
-      prefix: "[bundler] "      
+      prefix: "[bundler] "   
+    groups:
+      monthly:
+        patterns:
+          - "*"      
