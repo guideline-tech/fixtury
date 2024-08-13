@@ -144,7 +144,8 @@ module Fixtury
     def fixtury_database_connections
       return [] unless defined?(ActiveRecord::Base)
 
-      ActiveRecord::Base.connection_handler.connection_pool_list(:writing).map(&:connection)
+      pools = ActiveRecord::Base.connection_handler.connection_pool_list(:writing)
+      pools.map { |pool| pool.respond_to?(:lease_connection) ? pool.lease_connection : pool.connection }
     end
 
     # Load all dependenct fixtures and begin a transaction for each database connection.
