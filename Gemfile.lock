@@ -35,7 +35,7 @@ GEM
       activesupport (>= 6.1)
     i18n (1.14.6)
       concurrent-ruby (~> 1.0)
-    logger (1.6.2)
+    logger (1.6.3)
     m (1.6.2)
       method_source (>= 0.6.7)
       rake (>= 0.9.2.2)
