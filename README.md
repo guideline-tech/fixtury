@@ -21,7 +21,7 @@ class MyTest < ::Minitest::Test
 end
 ```
 
-Loading this file would ensure `users/fresh` is loaded into the fixture set before the suite is run. In the context of Minitest::Test, the Fixtury::MinitestHooks file will ensure the database records are present prior to your suite running. If you're using ActiveRecord `use_transactional_fixtures` and `use_transactional_tests` will be respected.
+Loading this file would ensure `users/fresh` is loaded into the fixture set before the suite is run. In the context of Minitest::Test, the Fixtury::MinitestHooks file will ensure the fixtures are present prior to your suite running.
 
 ## Configuration
 
@@ -108,4 +108,6 @@ end
 ### ActiveRecord Integration
 
 When installed with the railtie, a MutationObserver module is prepended into ActiveRecord::Base. It observes record mutations and ensures a record is not mutated outside of the declared isolation level. If you're not using ActiveRecord check out Fixtury::MutationObserver to see how you could hook into other frameworks.
+
+In your test suite when utilizing the Fixtury::MinitestHooks records will be loaded before ActiveRecord's transactional fixtures transaction is opened. This means the you can define all your fixtures in your tests, they will be prebuilt and, as long as the fixtury references are preserved, all your fixtures are cached across runs. The fixtures in each file are loaded on demand which means only the fixtures necessary for the test to run are prebuilt (and cached for reuse). Standard transactional fixture rollback occurs after each test run so any mutation to fixtures will not be persisted.
 
