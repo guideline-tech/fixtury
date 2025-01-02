@@ -156,7 +156,11 @@ module Fixtury
 
       fixtury_database_connections.each do |conn|
         conn.begin_transaction joinable: false
-        conn.pool.lock_thread = true
+        if conn.pool.respond_to?(:lock_thread=)
+          conn.pool.lock_thread = true
+        elsif conn.pool.respond_to?(:pin_connection!)
+          conn.pool.pin_connection!(true)
+        end
       end
     end
 
@@ -166,7 +170,11 @@ module Fixtury
 
       fixtury_database_connections.each do |conn|
         conn.rollback_transaction if conn.open_transactions.positive?
-        conn.pool.lock_thread = false
+        if conn.pool.respond_to?(:lock_thread=)
+          conn.pool.lock_thread = false
+        elsif conn.pool.respond_to?(:unpin_connection!)
+          conn.pool.unpin_connection!
+        end
       end
     end
 
