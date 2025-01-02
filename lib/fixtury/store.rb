@@ -236,7 +236,7 @@ module Fixtury
     # @param ref [Fixtury::Reference] The reference to check.
     # @return [TrueClass, FalseClass] `true` if the reference is stale, `false` otherwise.
     def reference_stale?(ref)
-      return true if ttl && ref.created_at < (Time.now.to_i - ttl)
+      return true if ttl && ref.created_at < (::Fixtury.actual_now.to_i - ttl)
 
       !locator.recognizable_key?(ref.locator_key)
     end

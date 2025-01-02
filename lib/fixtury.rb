@@ -134,6 +134,17 @@ module Fixtury
     msg
   end
 
+  if defined?(::Timecop)
+    def self.actual_now
+      ::Timecop.return do
+        Time.now
+      end
+    end
+  else
+    def self.actual_now
+      Time.now
+    end
+  end
 end
 
 require "fixtury/railtie" if defined?(Rails)

@@ -21,7 +21,7 @@ module Fixtury
     def initialize(name, locator_key, **metadata)
       @name = name
       @locator_key = locator_key
-      @created_at = Time.now.to_i
+      @created_at = ::Fixtury.actual_now.to_i
       @metadata = metadata
     end
 
