@@ -7,8 +7,7 @@ module Fixtury
   # MinitestHooks is a module designed to hook into a Minitest test case, and
   # provide a way to load fixtures into the test case. It is designed to be
   # prepended into the test case class, and will automatically load fixtures
-  # before the test case is setup, and rollback any changes after the test
-  # case is torn down.
+  # before the test case is setup.
   #
   # The module also provides a way to define fixture dependencies, and will
   # automatically load those dependencies before the test case is setup.
@@ -44,14 +43,15 @@ module Fixtury
   #
   #   end
   #
+  # Use `as: false` if you do not want an accessor created.
+  #
   # A Set object named fixtury_dependencies is made available on the test class.
   # This allows you to load all Minitest runnables and analyze what fixtures are
   # needed. This is very helpful in CI pipelines when you want to prepare all fixtures
   # ahead of time to share between multiple processes.
   #
-  # The setup and teardown attempt to manage a transaction for each registered database
-  # connection if ActiveRecord::Base is present. If use_transaction_tests or use_transactional_fixtures
-  # are present, those settings will be respected. If neither are present, a transaction will be used.
+  # It is the responsibility of the suite to manage the snapshot or rollback of the database. Generally
+  # something like ActiveRecord's use_transactional_fixtures will work just fine.
   module MinitestHooks
 
     def self.prepended(klass)
@@ -67,8 +67,7 @@ module Fixtury
     module ClassMethods
 
       # Declare fixtury dependencies for this test case. This will automatically
-      # load the fixtures before the test case is setup, and rollback any changes
-      # after the test case is torn down.
+      # load the fixtures before the test case is setup.
       #
       # @param searches [Array<String>] A list of fixture names to load. These should be resolvable paths relative to Fixtury.schema (root).
       # @param opts [Hash] A list of options to customize the behavior of the fixtures.
@@ -115,12 +114,6 @@ module Fixtury
       super
     end
 
-    # Minitest after_teardown hook. This will rollback any changes made to the fixtures after the test.
-    def after_teardown(...)
-      super
-      fixtury_teardown if fixtury_dependencies.any?
-    end
-
     # Access a fixture via a search term. This will access the fixture from the Fixtury store.
     # If the fixture was not declared as a dependency, an error will be raised.
     #
@@ -138,44 +131,10 @@ module Fixtury
       Fixtury.store.get(dfn.pathname)
     end
 
-    # Retrieve all database connections that are currently registered with a writing role.
-    #
-    # @return [Array<ActiveRecord::ConnectionAdapters::AbstractAdapter>] The list of database connections.
-    def fixtury_database_connections
-      return [] unless defined?(ActiveRecord::Base)
-
-      pools = ActiveRecord::Base.connection_handler.connection_pool_list(:writing)
-      pools.map { |pool| pool.respond_to?(:lease_connection) ? pool.lease_connection : pool.connection }
-    end
-
     # Load all dependenct fixtures and begin a transaction for each database connection.
     def fixtury_setup
       Fixtury.store.clear_stale_references!
       fixtury_load_all_fixtures!
-      return unless fixtury_use_transactions?
-
-      fixtury_database_connections.each do |conn|
-        conn.begin_transaction joinable: false
-        if conn.pool.respond_to?(:lock_thread=)
-          conn.pool.lock_thread = true
-        elsif conn.pool.respond_to?(:pin_connection!)
-          conn.pool.pin_connection!(true)
-        end
-      end
-    end
-
-    # Rollback any changes made to the fixtures
-    def fixtury_teardown
-      return unless fixtury_use_transactions?
-
-      fixtury_database_connections.each do |conn|
-        conn.rollback_transaction if conn.open_transactions.positive?
-        if conn.pool.respond_to?(:lock_thread=)
-          conn.pool.lock_thread = false
-        elsif conn.pool.respond_to?(:unpin_connection!)
-          conn.pool.unpin_connection!
-        end
-      end
     end
 
     # Load all fixture dependencies that have not previously been loaded into the store.
@@ -188,14 +147,6 @@ module Fixtury
         ::Fixtury.log("preloading #{name.inspect}", name: "test", level: ::Fixtury::LOG_LEVEL_INFO)
         fixtury(name)
       end
-    end
-
-    # Adhere to common Rails test transaction settings.
-    def fixtury_use_transactions?
-      return use_transactional_tests if respond_to?(:use_transactional_tests)
-      return use_transactional_fixtures if respond_to?(:use_transactional_fixtures)
-
-      true
     end
 
   end
