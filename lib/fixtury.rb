@@ -61,6 +61,12 @@ module Fixtury
     @hooks ||= ::Fixtury::Hooks.new
   end
 
+  def self.now
+    hooks.call(:time_access) do
+      ::Time.now
+    end
+  end
+
   # The default top level schema. Fixtury::Schema instances can be completely self-contained but most
   # usage would be through this shared definition.
   def self.schema
