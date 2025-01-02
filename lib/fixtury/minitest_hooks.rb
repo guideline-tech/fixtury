@@ -156,6 +156,7 @@ module Fixtury
 
       fixtury_database_connections.each do |conn|
         conn.begin_transaction joinable: false
+        conn.pool.lock_thread = true
       end
     end
 
@@ -165,6 +166,7 @@ module Fixtury
 
       fixtury_database_connections.each do |conn|
         conn.rollback_transaction if conn.open_transactions.positive?
+        conn.pool.lock_thread = false
       end
     end
 
