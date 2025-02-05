@@ -8,8 +8,11 @@ module Fixtury
     def test_definition_execution_errors_are_wrapped_in_execution_error
       dfn = ::Fixtury::Definition.new(name: "bar"){ raise "some runtime error" }
       executor = ::Fixtury::DefinitionExecutor.new(definition: dfn)
-      assert_raises Errors::DefinitionExecutionError do
+      begin
         executor.call
+        refute true, "Should have raised"
+      rescue Errors::DefinitionExecutionError => e
+        assert_equal e.backtrace, e.original_error.backtrace
       end
     end
 
