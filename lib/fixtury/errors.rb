@@ -25,8 +25,12 @@ module Fixtury
 
     class DefinitionExecutionError < Base
 
+      attr_reader :original_error
+
       def initialize(pathname, error)
-        super("Error while building #{pathname.inspect}: #{error}")
+        @original_error = error
+        super("Error while building #{pathname.inspect}: #{original_error}")
+        set_backtrace(original_error.backtrace)
       end
 
     end
