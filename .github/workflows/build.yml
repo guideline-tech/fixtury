@@ -10,8 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: [3.2.6]
-        experimental: [false]
+        ruby-version: [3.2, 3.3]
     steps:
       - uses: actions/checkout@v4
         with:
