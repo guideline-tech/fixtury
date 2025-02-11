@@ -51,7 +51,7 @@ module Fixtury
     end
 
     def test_references_are_built_relative_to_root
-      klass = Class.new do
+      Class.new do
         prepend ::Fixtury::MinitestHooks
 
         fixtury "/foo", as: false
