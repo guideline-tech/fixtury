@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'forwardable'
+
 module Fixtury
   # A class that contains the definition of a fixture. It also maintains a list of it's
   # dependencies to allow for analysis of the fixture graph.
