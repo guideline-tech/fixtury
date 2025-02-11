@@ -12,7 +12,6 @@ module Fixtury
 
     attr_reader :locator
     attr_reader :schema
-    attr_reader :ttl
 
     def initialize(schema: nil)
       @schema = schema || ::Fixtury.schema
