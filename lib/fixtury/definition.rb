@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'forwardable'
+require "forwardable"
 
 module Fixtury
   # A class that contains the definition of a fixture. It also maintains a list of it's
