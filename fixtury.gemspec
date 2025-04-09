@@ -15,6 +15,7 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   # Specify which files should be added to the gem when it is released.
   spec.files = Dir["lib/**/*"] + Dir["*.gemspec"] + Dir["bin/**/*"]
