@@ -25,11 +25,11 @@ updates:
     groups:
       monthly:
         patterns:
-          - "*"   
-    ignore:
-      - dependency-name: "activesupport"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "activemodel"
-        update-types: ["version-update:semver-major"]          
-      - dependency-name: "activerecord"
-        update-types: ["version-update:semver-major"]      
+          - "*" 
+        exclude-patterns:
+          - "active*"
+          - "rails"
+      rails:
+        patterns:
+          - "rails"
+          - "active*"
