@@ -16,7 +16,5 @@ jobs:
         with:
           show-progress: 'false'
       - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true # runs `bundle install` and caches installed gems automatically
+      - run: bundle exec appraisal install
       - run: bundle exec appraisal rake
