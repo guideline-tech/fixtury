@@ -1,5 +1,5 @@
 PATH
-  remote: .
+  remote: ..
   specs:
     fixtury (2.2.0)
 
@@ -80,7 +80,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
-  activerecord
+  activerecord (~> 8.1.0)
   appraisal (~> 2.5)
   bundler
   byebug
