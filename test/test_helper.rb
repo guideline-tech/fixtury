@@ -9,7 +9,9 @@ require "support/db/helpers"
 
 class Test < Minitest::Test
 
-  extend ::Minitest::Spec::DSL # for let
+  # Minitest::Spec::DSL provides `let` and other spec-style helpers
+  # This is available in both Minitest 5 and 6
+  extend ::Minitest::Spec::DSL if defined?(::Minitest::Spec::DSL)
   extend ::Support::Db::Helpers
 
   def before_setup

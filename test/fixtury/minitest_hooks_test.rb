@@ -88,7 +88,16 @@ module Fixtury
       end
 
       assert_equal %w[/global/foo /global/bar], klass.fixtury_dependencies.to_a
-      Minitest.run_one_method klass, :test_it
+      
+      # Minitest 6 changed the API for running a single test
+      # In MT6: instance = klass.new("test_it"); instance.run
+      # In MT5: Minitest.run_one_method(klass, :test_it)
+      if defined?(Minitest::VERSION) && Gem::Version.new(Minitest::VERSION) >= Gem::Version.new("6.0.0")
+        test_instance = klass.new("test_it")
+        test_instance.run
+      else
+        Minitest.run_one_method(klass, :test_it)
+      end
 
       assert_equal(%w[/global/bar /global/foo], $loaded_fixtures.keys.sort)
     ensure
