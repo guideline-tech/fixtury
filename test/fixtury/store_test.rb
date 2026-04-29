@@ -113,5 +113,65 @@ module Fixtury
       assert_equal "baz", store["foo"]
     end
 
+    def test_load_hook_fires_on_cache_hit
+      fresh_hooks = ::Fixtury::Hooks.new
+      ::Fixtury.stubs(:hooks).returns(fresh_hooks)
+
+      calls = []
+      fresh_hooks.on(:load) { |dfn, value| calls << [dfn.pathname, value] }
+
+      store = ::Fixtury::Store.new(schema: schema)
+      store["foo"]
+      assert_equal [], calls, ":load should not fire on initial cache-miss build"
+
+      store["foo"]
+      assert_equal [["/test/foo", "foo"]], calls
+    end
+
+    def test_load_hook_does_not_fire_on_initial_build
+      fresh_hooks = ::Fixtury::Hooks.new
+      ::Fixtury.stubs(:hooks).returns(fresh_hooks)
+
+      calls = []
+      fresh_hooks.on(:load) { |_dfn, _value| calls << :load }
+
+      store = ::Fixtury::Store.new(schema: schema)
+      store["foo"]
+
+      assert_equal [], calls
+    end
+
+    def test_load_hook_does_not_fire_when_locator_returns_nil
+      fresh_hooks = ::Fixtury::Hooks.new
+      ::Fixtury.stubs(:hooks).returns(fresh_hooks)
+
+      store = ::Fixtury::Store.new(schema: schema)
+      store["foo"]
+
+      calls = []
+      fresh_hooks.on(:load) { |_dfn, _value| calls << :load }
+      store.locator.stubs(:load).returns(nil)
+
+      store["foo"]
+
+      assert_equal [], calls
+    end
+
+    def test_multiple_load_hooks_fire_in_registration_order
+      fresh_hooks = ::Fixtury::Hooks.new
+      ::Fixtury.stubs(:hooks).returns(fresh_hooks)
+
+      calls = []
+      fresh_hooks.on(:load) { |_dfn, _value| calls << :first }
+      fresh_hooks.on(:load) { |_dfn, _value| calls << :second }
+      fresh_hooks.on(:load) { |_dfn, _value| calls << :third }
+
+      store = ::Fixtury::Store.new(schema: schema)
+      store["foo"]
+      store["foo"]
+
+      assert_equal [:first, :second, :third], calls
+    end
+
   end
 end

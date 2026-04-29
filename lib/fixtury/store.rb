@@ -121,6 +121,11 @@ module Fixtury
       pathname = dfn.pathname
       isokey = dfn.isolation_key
 
+      # Capture whether a real reference existed before isolation-dependency loading,
+      # so we can distinguish a true cache hit from a reference materialized by the
+      # recursive isolation build path.
+      pre_existing_real_ref = !!references[pathname]&.real?
+
       # Ensure that if we're part of an isolation group, we load all the fixtures in that group.
       maybe_load_isolation_dependencies(isokey)
 
@@ -138,6 +143,7 @@ module Fixtury
         log("refreshing #{pathname}", level: LOG_LEVEL_DEBUG)
         clear_reference(pathname)
         ref = nil
+        pre_existing_real_ref = false
       end
 
       value = nil
@@ -149,6 +155,8 @@ module Fixtury
           clear_reference(pathname)
           ref = nil
           log("missing #{pathname}", level: LOG_LEVEL_ALL)
+        elsif pre_existing_real_ref
+          ::Fixtury.hooks.call(:load, dfn, value) { value }
         end
       end
 
