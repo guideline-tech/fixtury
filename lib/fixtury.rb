@@ -111,7 +111,12 @@ module Fixtury
     raise ArgumentError, "#{search.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
 
     factory_store = store ? self.store(store) : ::Fixtury::Store.new(name: nil)
-    ::Fixtury::DefinitionExecutor.new(store: factory_store, definition: dfn).call.value
+
+    # Hold the target's reference while executing so recursive loading behaviors,
+    # such as isolation group preloading, do not build and cache the target themselves.
+    factory_store.holding(dfn.pathname) do
+      ::Fixtury::DefinitionExecutor.new(store: factory_store, definition: dfn).call.value
+    end
   end
 
   # Load all known fixture files configured in Configuration. Reset the store references if

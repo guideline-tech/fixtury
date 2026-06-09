@@ -98,6 +98,26 @@ module Fixtury
       @schema = prior
     end
 
+    # Temporarily place a holder reference at the given pathname while the block executes.
+    # This prevents the store from building and caching the fixture (e.g. via isolation
+    # group loading) while still allowing other fixtures to be resolved. Any pre-existing
+    # reference is restored when the block completes.
+    #
+    # @param pathname [String] The pathname to hold.
+    # @yield [void] The block to execute while the reference is held.
+    # @return [Object] The result of the block.
+    def holding(pathname)
+      prior = references[pathname]
+      references[pathname] = ::Fixtury::Reference.holder(pathname)
+      yield
+    ensure
+      if prior
+        references[pathname] = prior
+      else
+        references.delete(pathname)
+      end
+    end
+
     # Is a fixture for the given search already loaded?
     #
     # @param search [String] The name of the fixture to search for.

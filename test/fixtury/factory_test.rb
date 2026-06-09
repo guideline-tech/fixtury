@@ -97,6 +97,43 @@ module Fixtury
       assert_equal %w[/dependency], ::Fixtury.store(:my_cache).references.keys
     end
 
+    def test_factory_target_is_not_built_or_cached_by_isolation_loading
+      built = []
+      ::Fixtury.define do
+        namespace "group", isolate: true do
+          fixture("sibling") do
+            built << :sibling
+            "sibling"
+          end
+          fixture("record", deps: "sibling") do |deps|
+            value = "record built with #{deps.sibling}"
+            built << :record
+            value
+          end
+        end
+      end
+
+      value = ::Fixtury.factory("group/record", store: :my_cache)
+
+      assert_equal "record built with sibling", value
+      assert_equal [:sibling, :record], built
+      assert_equal %w[/group/sibling], ::Fixtury.store(:my_cache).references.keys
+    end
+
+    def test_factory_preserves_an_existing_reference_for_the_target
+      ::Fixtury.define do
+        fixture("record") { "record" }
+      end
+
+      named_store = ::Fixtury.store(:my_cache)
+      named_store.get("record")
+      ref = named_store.references["/record"]
+
+      ::Fixtury.factory("record", store: :my_cache)
+
+      assert_equal ref, named_store.references["/record"]
+    end
+
     def test_factory_requires_a_definition
       ::Fixtury.define do
         namespace "things" do
