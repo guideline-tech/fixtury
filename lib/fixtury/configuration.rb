@@ -32,10 +32,11 @@ module Fixtury
       @locator_backend = backend.to_sym
     end
 
-    # Delete the storage file(s) if they exist. This includes the files backing
-    # any named stores. e.g. tmp/fixtury.yml and tmp/fixtury.*.yml
+    # Delete the storage file(s) if they exist. Named store files are discovered by
+    # globbing the filesystem (e.g. tmp/fixtury.yml and tmp/fixtury.*.yml) so files
+    # from stores not instantiated in this process are removed as well.
     def reset
-      store_filepaths.each { |path| File.delete(path) if File.file?(path) }
+      persisted_filepaths.each { |path| File.delete(path) if File.file?(path) }
     end
 
     # The file backing the references of the given store. The default store
@@ -140,7 +141,9 @@ module Fixtury
       YAML.unsafe_load_file(path)
     end
 
-    def store_filepaths
+    # All storage files currently on disk: the configured filepath plus any
+    # named store files matching its naming pattern.
+    def persisted_filepaths
       return [] unless filepath
 
       ext = File.extname(filepath)

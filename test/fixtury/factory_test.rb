@@ -152,6 +152,20 @@ module Fixtury
       end
     end
 
+    def test_reset_deletes_named_store_files_even_when_stores_are_not_instantiated
+      Dir.mktmpdir do |dir|
+        ::Fixtury.configuration.filepath = File.join(dir, "fixtury.yml")
+        File.binwrite(File.join(dir, "fixtury.yml"), { references: {} }.to_yaml)
+        File.binwrite(File.join(dir, "fixtury.my_cache.yml"), { references: {} }.to_yaml)
+
+        assert_equal true, ::Fixtury.stores.empty?
+        ::Fixtury.configuration.reset
+
+        assert_equal false, File.file?(File.join(dir, "fixtury.yml"))
+        assert_equal false, File.file?(File.join(dir, "fixtury.my_cache.yml"))
+      end
+    end
+
     def test_store_filepath_embeds_the_store_name
       ::Fixtury.configuration.filepath = "tmp/fixtury.yml"
 
