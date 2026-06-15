@@ -11,13 +11,20 @@ Gem::Specification.new do |spec|
   spec.email         = ["mike@guideline.com"]
 
   spec.summary       = "Treat fixtures like factories and factories like fixtures"
-  spec.homepage      = "https://github.com/guideline-tech/fixtury"
   spec.license       = "MIT"
+  spec.required_ruby_version = ">= 3.3.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
+
+  github_uri = "https://github.com/guideline-tech/fixtury"
+
+  spec.homepage = github_uri
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = github_uri
+  spec.metadata["changelog_uri"] = "#{github_uri}/releases"
+  spec.metadata["github_repo"] = github_uri
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  # Specify which files should be added to the gem when it is released.
   spec.files = Dir["lib/**/*"] + Dir["*.gemspec"] + Dir["bin/**/*"]
 
   spec.bindir        = "bin"
@@ -33,6 +40,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "mocha"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "sqlite3"
-
-  spec.required_ruby_version = ">= 3.3.0"
 end
