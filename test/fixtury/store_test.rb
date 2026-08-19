@@ -26,13 +26,14 @@ module Fixtury
       store = ::Fixtury::Store.new(schema: schema)
       assert_equal true, store.references.empty?
 
-      t = Time.now.to_i
+      t = Time.now
+      Fixtury.stubs(:now).returns(t)
       assert_equal "foo", store["foo"]
       ref = store.references["/test/foo"]
 
       assert_equal "/test/foo", ref.name
       assert_equal "fixtury-oid-#{Process.pid}-#{"foo".object_id}", ref.locator_key
-      assert_equal t, ref.created_at
+      assert_equal t.to_i, ref.created_at
     end
 
     def test_a_store_returns_an_existing_reference_rather_than_reinvoking_the_definition
