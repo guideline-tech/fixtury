@@ -81,6 +81,26 @@ end
 
 As you can see fixtures are named in a nested structure and can refer to each other via dependencies. See Fixtury::Dependency for more specifics.
 
+## Factory Mode
+
+Fixture definitions can also be used as factories. `Fixtury.factory` invokes the definition every time it's called and never stores the result, making it useful for generating new records on demand without mutating the global cache.
+
+```ruby
+user_a = Fixtury.factory("users/fresh")
+user_b = Fixtury.factory("users/fresh")
+user_a == user_b # => false, each call builds a new record
+```
+
+By default, dependencies of the definition are resolved through an ephemeral store: they are built fresh for the invocation and discarded afterwards. Within a single invocation a shared dependency is only built once.
+
+If the dependency tree is expensive to build, a dedicated store can be used instead:
+
+```ruby
+Fixtury.factory("users/fresh", store: :my_cache)
+```
+
+Dependencies will be resolved through (and cached in) a dedicated store named `:my_cache`, shared across factory invocations using the same store name. The named store is bootstrapped from its own file, derived from the configured filepath — e.g. `tmp/fixtury.yml` produces `tmp/fixtury.my_cache.yml` — and is persisted alongside the default store when `Fixtury.configuration.dump_file` is called. In all cases the target definition itself is always invoked and its result is never stored.
+
 ## Isolation Levels
 
 Isolation keys enable groups of fixtures to use and modify the same resources. When one fixture from an isolation level is built, all fixtures in that isolation level are built. This allows multiple fixtures to potentially mutate a resource while keeping the definition consistent.
