@@ -74,8 +74,49 @@ module Fixtury
   end
 
   # Default store for fixtures. This is a shared store that can be used across the application.
-  def self.store
-    @store ||= ::Fixtury::Store.new
+  # A name can be provided to access a dedicated store instead. Named stores behave just like
+  # the default store but are bootstrapped from (and dumped to) their own file. e.g. a name of
+  # :my_cache would utilize a fixtury.my_cache.yml file alongside the default fixtury.yml.
+  #
+  # @param name [Symbol, String] The name of the store to access.
+  # @return [Fixtury::Store] The store associated with the given name.
+  def self.store(name = :default)
+    name = name.to_sym
+    stores[name] ||= ::Fixtury::Store.new(name: name)
+  end
+
+  # All shared stores that have been instantiated, keyed by name.
+  #
+  # @return [Hash<Symbol, Fixtury::Store>]
+  def self.stores
+    @stores ||= {}
+  end
+
+  # Invoke a definition without caching the result. The definition is executed every time,
+  # making this useful for generating new records on demand without mutating the global cache.
+  #
+  # By default the definition's dependencies are resolved through an ephemeral store, meaning
+  # they are built fresh and discarded afterwards. If a store name is provided, dependencies
+  # are resolved through (and cached in) the named store instead, which is bootstrapped from
+  # its own file. e.g. factory("some/definition", store: :my_cache) would resolve dependencies
+  # via a store backed by fixtury.my_cache.yml. In both cases the definition itself is always
+  # invoked and its result is never stored.
+  #
+  # @param search [String] The name of the definition to invoke.
+  # @param store [Symbol, String, nil] The name of a dedicated store to resolve dependencies through.
+  # @return [Object] The newly built value.
+  # @raise [ArgumentError] if the search does not refer to a definition.
+  def self.factory(search, store: nil)
+    dfn = schema.get!(search)
+    raise ArgumentError, "#{search.inspect} must refer to a definition" unless dfn.acts_like?(:fixtury_definition)
+
+    factory_store = store ? self.store(store) : ::Fixtury::Store.new(name: nil)
+
+    # Hold the target's reference while executing so recursive loading behaviors,
+    # such as isolation group preloading, do not build and cache the target themselves.
+    factory_store.holding(dfn.pathname) do
+      ::Fixtury::DefinitionExecutor.new(store: factory_store, definition: dfn).call.value
+    end
   end
 
   # Load all known fixture files configured in Configuration. Reset the store references if
@@ -104,10 +145,10 @@ module Fixtury
     store.load_all
   end
 
-  # Remove all references from the active store and reset the dependency file.
+  # Remove all references from the active stores and reset the dependency files.
   def self.reset
     configuration.reset
-    store.reset
+    stores.each_value(&:reset)
   end
 
   # Perform a reset if any of the tracked files have changed.
