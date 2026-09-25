@@ -7,8 +7,8 @@ require "fixtury/version"
 Gem::Specification.new do |spec|
   spec.name          = "fixtury"
   spec.version       = Fixtury::VERSION
-  spec.authors       = ["Mike Nelson"]
-  spec.email         = ["mike@guideline.com"]
+  spec.authors       = ["Gusto"]
+  spec.email         = ["gusto-opensource-buildkite@gusto.com"]
 
   spec.summary       = "Treat fixtures like factories and factories like fixtures"
   spec.license       = "MIT"
