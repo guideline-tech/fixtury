@@ -32,9 +32,26 @@ module Fixtury
       @locator_backend = backend.to_sym
     end
 
-    # Delete the storage file if it exists.
+    # Delete the storage file(s) if they exist. Named store files are discovered by
+    # globbing the filesystem (e.g. tmp/fixtury.yml and tmp/fixtury.*.yml) so files
+    # from stores not instantiated in this process are removed as well.
     def reset
-      File.delete(filepath) if filepath && File.file?(filepath)
+      persisted_filepaths.each { |path| File.delete(path) if File.file?(path) }
+    end
+
+    # The file backing the references of the given store. The default store
+    # uses the configured filepath directly while named stores embed their name
+    # in the filename. e.g. tmp/fixtury.yml => tmp/fixtury.my_cache.yml
+    #
+    # @param name [Symbol, String] The name of the store.
+    # @return [String, nil] The filepath for the given store, nil if no filepath is configured.
+    def store_filepath(name = :default)
+      name = (name || :default).to_sym
+      return filepath if name == :default
+      return nil unless filepath
+
+      ext = File.extname(filepath)
+      File.join(File.dirname(filepath), "#{File.basename(filepath, ext)}.#{name}#{ext}")
     end
 
     # Add a file or glob pattern to the list of fixture files.
@@ -53,22 +70,31 @@ module Fixtury
     end
     alias add_dependency_paths add_dependency_path
 
-    # The references stored in the dependency file. When stores are initialized
-    # these will be used to bootstrap the references.
+    # The references stored in the file backing the given store. When stores are
+    # initialized these will be used to bootstrap the references.
     #
-    # @return [Hash] The references stored in the dependency file.
-    def stored_references
-      return {} if stored_data.nil?
+    # @param name [Symbol, String] The name of the store.
+    # @return [Hash] The references stored in the store's file.
+    def stored_references(name = :default)
+      data = stored_data(store_filepath(name))
+      return {} if data.nil?
 
-      stored_data[:references] || {}
+      data[:references] || {}
     end
 
-    # Dump the current state of the dependency manager to the storage file.
+    # Dump the current state of the dependency manager to the storage files.
+    # Each instantiated store is dumped to the file associated with its name.
     def dump_file
       return unless filepath
 
-      FileUtils.mkdir_p(File.dirname(filepath))
-      File.binwrite(filepath, file_data.to_yaml)
+      ::Fixtury.store # ensure the default store is present
+      ::Fixtury.stores.each_value do |store|
+        path = store_filepath(store.name)
+        next unless path
+
+        FileUtils.mkdir_p(File.dirname(path))
+        File.binwrite(path, file_data(store.references).to_yaml)
+      end
     end
 
     def changes
@@ -96,7 +122,7 @@ module Fixtury
 
     private
 
-    def file_data
+    def file_data(references)
       checksums = {}
       calculate_checksums do |filepath, checksum|
         checksums[filepath] = checksum
@@ -104,15 +130,25 @@ module Fixtury
 
       {
         dependencies: checksums,
-        references: ::Fixtury.store.references,
+        references: references,
       }
     end
 
-    def stored_data
-      return nil unless filepath
-      return nil unless File.file?(filepath)
+    def stored_data(path = filepath)
+      return nil unless path
+      return nil unless File.file?(path)
 
-      YAML.unsafe_load_file(filepath)
+      YAML.unsafe_load_file(path)
+    end
+
+    # All storage files currently on disk: the configured filepath plus any
+    # named store files matching its naming pattern.
+    def persisted_filepaths
+      return [] unless filepath
+
+      ext = File.extname(filepath)
+      glob = File.join(File.dirname(filepath), "#{File.basename(filepath, ext)}.*#{ext}")
+      [filepath, *Dir[glob]]
     end
 
     def calculate_checksums(&block)
