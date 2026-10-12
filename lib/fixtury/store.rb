@@ -11,12 +11,19 @@ module Fixtury
   class Store
 
     attr_reader :locator
+    attr_reader :name
     attr_reader :schema
 
-    def initialize(schema: nil)
+    # @param schema [Fixtury::Schema] The schema to use, defaults to the global schema.
+    # @param name [Symbol, String, nil] The name of this store. The name determines
+    #   which file the references are bootstrapped from (see
+    #   Fixtury::Configuration#store_filepath). A nil name produces an ephemeral store
+    #   that starts empty and is never persisted.
+    def initialize(schema: nil, name: :default)
+      @name = name&.to_sym
       @schema = schema || ::Fixtury.schema
       @locator = ::Fixtury::Locator.from(::Fixtury.configuration.locator_backend)
-      self.references = ::Fixtury.configuration.stored_references
+      self.references = @name ? ::Fixtury.configuration.stored_references(@name) : {}
     end
 
     def references
@@ -45,6 +52,7 @@ module Fixtury
     # @return [String]
     def inspect
       parts = []
+      parts << "name: #{name.inspect}" if name
       parts << "schema: #{schema.inspect}"
       parts << "locator: #{locator.inspect}"
       parts << "ttl: #{ttl.inspect}" if ttl
@@ -88,6 +96,26 @@ module Fixtury
       yield
     ensure
       @schema = prior
+    end
+
+    # Temporarily place a holder reference at the given pathname while the block executes.
+    # This prevents the store from building and caching the fixture (e.g. via isolation
+    # group loading) while still allowing other fixtures to be resolved. Any pre-existing
+    # reference is restored when the block completes.
+    #
+    # @param pathname [String] The pathname to hold.
+    # @yield [void] The block to execute while the reference is held.
+    # @return [Object] The result of the block.
+    def holding(pathname)
+      prior = references[pathname]
+      references[pathname] = ::Fixtury::Reference.holder(pathname)
+      yield
+    ensure
+      if prior
+        references[pathname] = prior
+      else
+        references.delete(pathname)
+      end
     end
 
     # Is a fixture for the given search already loaded?
