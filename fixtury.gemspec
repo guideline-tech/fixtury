@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.metadata["github_repo"] = github_uri
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir["lib/**/*"] + Dir["*.gemspec"] + Dir["bin/**/*"]
+  spec.files = Dir["lib/**/*"] + Dir["*.gemspec"] + Dir["LICENSE"] + Dir["bin/**/*"]
 
   spec.bindir        = "bin"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
