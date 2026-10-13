@@ -3,7 +3,7 @@
 module Fixtury
 
   MAJOR       = 2
-  MINOR       = 6
+  MINOR       = 7
   PATCH       = 0
   PRERELEASE  = nil
 
