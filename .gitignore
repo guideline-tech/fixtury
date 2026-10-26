@@ -9,3 +9,4 @@
 .byebug_history
 *.gem
 gemfiles/*.lock
+mise.lock
