@@ -10,12 +10,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: [3.3, 3.4, 4.0]
+        ruby-version: ['3.3', '3.4', '4.0']
     steps:
       - uses: actions/checkout@v7
         with:
           show-progress: 'false'
       - uses: ruby/setup-ruby@v1
-      - run: bundle install
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true # runs `bundle install` and caches installed gems automatically
       - run: bundle exec appraisal install
       - run: bundle exec appraisal rake
